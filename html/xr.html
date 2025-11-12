@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>行人重识别系统</title>
+    <!-- CSS文件 -->
+    <link rel="stylesheet" href="../css/base.css">
+    <link rel="stylesheet" href="../css/layout.css">
+    <link rel="stylesheet" href="../css/auth.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/footer.css">
+    <!-- Font Awesome图标库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Vue.js -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+</head>
+
+<style>
+.match-details {
+    margin-top: 10px;
+    text-align: center;
+    color: #333;
+    font-size: 15px;
+}
+.match-info-box {
+    display: inline-block;
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 10px 20px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+.match-info-box p {
+    margin: 5px 0;
+}
+.match-info-box i {
+    color: #007bff;
+    margin-right: 6px;
+}
+</style>
+
+<body>
+    <div id="app">
+        <!-- 认证页面 -->
+        <div v-if="!isLoggedIn" class="auth-page">
+            <div class="auth-container">
+                <!-- 系统标题 -->
+                <div class="system-header">
+                    <div class="system-logo">
+                        <i class="fas fa-user-friends"></i>
+                    </div>
+                    <h1 class="system-title">行人重识别系统</h1>
+                    <p class="system-subtitle">基于深度学习的智能图像检索平台</p>
+                </div>
+
+                <!-- 登录表单 -->
+                <div v-if="currentAuthForm === 'login'" class="login-form">
+                    <div class="auth-header">
+                        <div class="auth-icon">
+                            <i class="fas fa-sign-in-alt"></i>
+                        </div>
+                        <h2>欢迎回来</h2>
+                        <p>请登录您的账户</p>
+                    </div>
+
+                    <form @submit.prevent="login">
+                        <div class="form-group">
+                            <div class="input-with-icon">
+                                <i class="fas fa-user input-icon"></i>
+                                <input type="text" v-model="loginForm.username" placeholder="用户名或邮箱" required>
+                            </div>
+                            <div class="auth-error-message" v-if="loginErrors.username">
+                                <i class="fas fa-exclamation-circle"></i>
+                                请输入有效的用户名或邮箱
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="input-with-icon">
+                                <i class="fas fa-lock input-icon"></i>
+                                <input :type="showLoginPassword ? 'text' : 'password'" v-model="loginForm.password"
+                                    placeholder="密码" required>
+                                <span class="password-toggle" @click="showLoginPassword = !showLoginPassword">
+                                    <i :class="showLoginPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                                </span>
+                            </div>
+                            <div class="auth-error-message" v-if="loginErrors.password">
+                                <i class="fas fa-exclamation-circle"></i>
+                                密码不能为空
+                            </div>
+                        </div>
+
+                        <div class="form-options">
+                            <label class="remember-me">
+                                <input type="checkbox" v-model="loginForm.remember">
+                                <span class="checkmark">
+                                    <i class="fas fa-check"></i>
+                                </span>
+                                记住我
+                            </label>
+                            <a @click="currentAuthForm = 'reset'" class="auth-link">
+                                <i class="fas fa-key"></i>
+                                忘记密码?
+                            </a>
+                        </div>
+
+                        <button type="submit" class="auth-btn primary" :disabled="authLoading">
+                            <i v-if="authLoading" class="fas fa-spinner fa-spin"></i>
+                            <i v-else class="fas fa-sign-in-alt"></i>
+                            {{ authLoading ? '登录中...' : '登录' }}
+                        </button>
+
+                        <div class="auth-success-message" v-if="loginSuccess">
+                            <i class="fas fa-check-circle"></i>
+                            登录成功！
+                        </div>
+                    </form>
+
+                    <div class="auth-switch">
+                        还没有账户?
+                        <a @click="currentAuthForm = 'register'" class="auth-link">
+                            <i class="fas fa-user-plus"></i>
+                            立即注册
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 注册表单 -->
+                <!-- 注册表单 -->
+                <div v-if="currentAuthForm === 'register'" class="register-form">
+                    <div class="auth-back" @click="currentAuthForm = 'login'">
+                        <i class="fas fa-arrow-left"></i>
+                        <span>返回登录</span>
+                    </div>
+
+                    <div class="auth-header">
+                        <div class="auth-icon">
+                            <i class="fas fa-user-plus"></i>
+                        </div>
+                        <h2>创建账户</h2>
+                        <p>注册新用户账户</p>
+                    </div>
+
+                    <form @submit.prevent="register">
+                        <div class="form-group">
+                            <div class="input-with-icon">
+                                <i class="fas fa-user input-icon"></i>
+                                <input type="text" v-model="registerForm.username" placeholder="用户名" required>
+                            </div>
+                            <div class="auth-error-message" v-if="registerErrors.username">
+                                <i class="fas fa-exclamation-circle"></i>
+                                用户名不能为空
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="input-with-icon">
+                                <i class="fas fa-envelope input-icon"></i>
+                                <input type="email" v-model="registerForm.email" placeholder="电子邮箱" required>
+                            </div>
+                            <div class="auth-error-message" v-if="registerErrors.email">
+                                <i class="fas fa-exclamation-circle"></i>
+                                请输入有效的电子邮箱
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="input-with-icon">
+                                <i class="fas fa-lock input-icon"></i>
+                                <input :type="showRegisterPassword ? 'text' : 'password'"
+                                    v-model="registerForm.password" placeholder="密码" required
+                                    @input="checkPasswordStrength">
+                                <span class="password-toggle" @click="showRegisterPassword = !showRegisterPassword">
+                                    <i :class="showRegisterPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                                </span>
+                            </div>
+
+                            <!-- 密码强度显示 -->
+                            <div class="password-strength-container" v-if="registerForm.password">
+                                <div class="password-strength" :class="passwordStrengthClass"></div>
+                                <div class="password-strength-text" :class="passwordStrengthClass">
+                                    <i :class="getPasswordStrengthIcon"></i>
+                                    {{ getPasswordStrengthText }}
+                                </div>
+                            </div>
+
+                            <!-- 密码提示 -->
+                            <small class="password-hint">
+                                <i class="fas fa-info-circle"></i>
+                                密码至少6位字符，建议使用字母、数字和特殊字符组合
+                            </small>
+
+                            <!-- 弱密码警告 -->
+                            <div v-if="passwordStrength === 'weak' && registerForm.password.length >= 6"
+                                class="weak-password-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <span>密码强度较弱，建议增加密码复杂度以提高安全性</span>
+                            </div>
+
+                            <div class="auth-error-message" v-if="registerErrors.password">
+                                <i class="fas fa-exclamation-circle"></i>
+                                密码不能少于6个字符
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="input-with-icon">
+                                <i class="fas fa-lock input-icon"></i>
+                                <input :type="showConfirmPassword ? 'text' : 'password'"
+                                    v-model="registerForm.confirmPassword" placeholder="确认密码" required>
+                                <span class="password-toggle" @click="showConfirmPassword = !showConfirmPassword">
+                                    <i :class="showConfirmPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                                </span>
+                            </div>
+                            <div class="auth-error-message" v-if="registerErrors.confirmPassword">
+                                <i class="fas fa-exclamation-circle"></i>
+                                两次输入的密码不一致
+                            </div>
+                        </div>
+
+                        <button type="submit" class="auth-btn primary" :disabled="authLoading">
+                            <i v-if="authLoading" class="fas fa-spinner fa-spin"></i>
+                            <i v-else class="fas fa-user-plus"></i>
+                            {{ authLoading ? '注册中...' : '注册' }}
+                        </button>
+
+                        <div class="auth-success-message" v-if="registerSuccess">
+                            <i class="fas fa-check-circle"></i>
+                            注册成功！
+                        </div>
+                    </form>
+                </div>
+
+                <!-- 重置密码表单 -->
+                <div v-if="currentAuthForm === 'reset'" class="reset-form">
+                    <div class="auth-back" @click="currentAuthForm = 'login'">
+                        <i class="fas fa-arrow-left"></i>
+                        <span>返回登录</span>
+                    </div>
+
+                    <div class="auth-header">
+                        <div class="auth-icon">
+                            <i class="fas fa-key"></i>
+                        </div>
+                        <h2>重置密码</h2>
+                        <p>请输入您的电子邮箱以重置密码</p>
+                    </div>
+
+                    <form @submit.prevent="resetPassword">
+                        <div class="form-group">
+                            <div class="input-with-icon">
+                                <i class="fas fa-envelope input-icon"></i>
+                                <input type="email" v-model="resetForm.email" placeholder="注册时使用的电子邮箱" required>
+                            </div>
+                            <div class="auth-error-message" v-if="resetErrors.email">
+                                <i class="fas fa-exclamation-circle"></i>
+                                请输入有效的电子邮箱
+                            </div>
+                        </div>
+
+                        <button type="submit" class="auth-btn primary" :disabled="authLoading">
+                            <i v-if="authLoading" class="fas fa-spinner fa-spin"></i>
+                            <i v-else class="fas fa-paper-plane"></i>
+                            {{ authLoading ? '发送中...' : '发送重置链接' }}
+                        </button>
+
+                        <div class="auth-info-message" v-if="resetSuccess">
+                            <i class="fas fa-check-circle"></i>
+                            重置链接已发送到您的邮箱，请查收。
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主应用页面 -->
+        <div v-else class="main-app">
+            <!-- 顶部导航 -->
+            <header class="app-header">
+                <div class="header-content">
+                    <div class="header-brand">
+                        <div class="logo">
+                            <i class="fas fa-user-friends"></i>
+                        </div>
+                        <div class="brand-text">
+                            <h1 class="brand-title">行人重识别系统</h1>
+                            <p class="brand-subtitle">智能图像检索平台</p>
+                        </div>
+                    </div>
+                    <div class="user-menu">
+                        <div class="user-info">
+                            <i class="fas fa-user-circle user-avatar"></i>
+                            <span class="user-name">欢迎, {{ currentUser }}</span>
+                        </div>
+                        <button @click="logout" class="logout-btn">
+                            <i class="fas fa-sign-out-alt"></i>
+                            退出登录
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- 主内容区域 -->
+            <main class="app-main">
+                <!-- 主导航 -->
+                <nav class="main-nav">
+                    <div class="nav-tabs">
+                        <button :class="['nav-tab', { active: activeTab === 'home' }]" @click="activeTab = 'home'">
+                            <i class="fas fa-home nav-icon"></i>
+                            <span class="nav-text">首页</span>
+                        </button>
+                        <button :class="['nav-tab', { active: activeTab === 'recognition' }]"
+                            @click="activeTab = 'recognition'">
+                            <i class="fas fa-search nav-icon"></i>
+                            <span class="nav-text">行人识别</span>
+                        </button>
+                        <button :class="['nav-tab', { active: activeTab === 'settings' }]"
+                            @click="activeTab = 'settings'">
+                            <i class="fas fa-cog nav-icon"></i>
+                            <span class="nav-text">设置</span>
+                        </button>
+                    </div>
+                </nav>
+
+                <!-- 主页内容 -->
+                <div v-if="activeTab === 'home'" class="tab-content home-tab">
+                    <!-- 顶部欢迎区域 -->
+                    <section class="welcome-section">
+                        <div class="welcome-content">
+                            <div class="welcome-text">
+                                <h1 class="welcome-title">行人重识别系统</h1>
+                                <p class="welcome-description">
+                                    基于深度学习的智能图像检索平台，为您提供精准高效的行人识别服务
+                                </p>
+                                <div class="welcome-stats">
+                                    <div class="stat-item">
+                                        <div class="stat-icon">
+                                            <i class="fas fa-chart-line"></i>
+                                        </div>
+                                        <div class="stat-number">{{ usageCount }}</div>
+                                        <div class="stat-label">累计识别次数</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-icon">
+                                            <i class="fas fa-clock"></i>
+                                        </div>
+                                        <div class="stat-number">{{ formattedLastUsed }}</div>
+                                        <div class="stat-label">最近使用时间</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="welcome-actions">
+                                <button class="btn primary action-btn" @click="activeTab = 'recognition'">
+                                    <i class="fas fa-play-circle"></i>
+                                    开始识别
+                                </button>
+                                <button class="btn secondary action-btn" @click="activeTab = 'settings'">
+                                    <i class="fas fa-cog"></i>
+                                    系统设置
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- 简单功能介绍 -->
+                    <section class="intro-section">
+                        <div class="intro-content">
+                            <h2 class="intro-title">系统简介</h2>
+                            <p class="intro-description">
+                                本系统采用先进的深度学习技术，能够对行人图像进行精准的特征提取和匹配识别。
+                                用户只需上传待识别的行人图片，系统即可快速返回最相似的匹配结果，为安防监控、
+                                人员管理等领域提供可靠的技术支持。
+                            </p>
+                            <div class="feature-highlights">
+                                <div class="highlight-item">
+                                    <i class="fas fa-camera highlight-icon"></i>
+                                    <span class="highlight-text">支持多种图片格式</span>
+                                </div>
+                                <div class="highlight-item">
+                                    <i class="fas fa-search highlight-icon"></i>
+                                    <span class="highlight-text">精准特征匹配</span>
+                                </div>
+                                <div class="highlight-item">
+                                    <i class="fas fa-bolt highlight-icon"></i>
+                                    <span class="highlight-text">快速处理响应</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- 识别功能页面 -->
+                <div v-if="activeTab === 'recognition'" class="tab-content recognition-tab">
+                    <div class="recognition-section">
+                        <h2 class="recognition-title">行人重识别</h2>
+                        <p class="recognition-subtitle">上传一张行人图片，系统将返回最相似的匹配结果</p>
+
+                        <div class="upload-area" @click="triggerFileInput" @dragover.prevent @drop="handleDrop">
+                            <div class="upload-icon">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                            </div>
+                            <p class="upload-text">点击或拖拽图片到此处上传</p>
+                            <p class="upload-hint">支持 JPG, PNG 格式，最大 5MB</p>
+                        </div>
+
+                        <input type="file" ref="fileInput" class="file-input" accept="image/*"
+                            @change="handleFileSelect">
+
+                        <div v-if="uploadedImage" class="image-results">
+                            <div class="image-pair">
+                                <div class="image-box">
+                                    <h4 class="image-title"><i class="fas fa-upload"></i> 上传的图片</h4>
+                                    <img :src="uploadedImage" alt="上传的图片" class="result-image">
+                                </div>
+                                <div class="image-box">
+                                    <h4 class="image-title"><i class="fas fa-search"></i> 匹配结果</h4>
+                                    <img v-if="matchedImage" :src="matchedImage" alt="匹配结果" class="result-image">
+                                    <div v-else class="processing-placeholder">
+                                        <i class="fas fa-spinner fa-spin processing-icon"></i>
+                                        <p>处理中...</p>
+                                    </div>
+                                </div>
+                                <!-- 新增：匹配结果详细信息 -->
+                                <div v-if="matchedInfo" class="match-details">
+                                    <div class="match-info-box">
+                                        <p><i class="fas fa-percentage"></i> 相似度: {{ matchedInfo.similarity }}</p>
+                                        <p><i class="fas fa-ruler"></i> 距离: {{ matchedInfo.distance }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="action-buttons">
+                            <button @click="processImage" :disabled="!uploadedImage" class="btn primary process-btn">
+                                <i class="fas fa-play"></i>
+                                开始识别
+                            </button>
+                            <button @click="clearImages" class="btn secondary clear-btn">
+                                <i class="fas fa-trash"></i>
+                                清除图片
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 设置页面 -->
+                <div v-if="activeTab === 'settings'" class="tab-content settings-tab">
+                    <div class="settings-section">
+                        <h2 class="section-title"><i class="fas fa-cog"></i> 用户设置</h2>
+
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <h3><i class="fas fa-bell setting-icon"></i> 消息通知</h3>
+                                <p>接收识别完成的通知</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" v-model="settings.notifications">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <h3><i class="fas fa-save setting-icon"></i> 自动保存结果</h3>
+                                <p>自动保存识别历史记录</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" v-model="settings.autoSave">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="account-info">
+                        <h2 class="section-title"><i class="fas fa-user-circle"></i> 账户信息</h2>
+                        <div class="info-item">
+                            <span class="info-label"><i class="fas fa-user"></i> 用户名:</span>
+                            <span class="info-value">{{ currentUser }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label"><i class="fas fa-calendar-alt"></i> 注册时间:</span>
+                            <span class="info-value">{{ formattedRegistrationDate }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label"><i class="fas fa-clock"></i> 最后使用:</span>
+                            <span class="info-value">{{ formattedLastUsedForSettings }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label"><i class="fas fa-chart-line"></i> 识别次数:</span>
+                            <span class="info-value">{{ usageCount }}</span>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- 底部信息 -->
+            <footer class="app-footer">
+                <div class="footer-content">
+                    <div class="footer-section">
+                        <h3><i class="fas fa-user-friends"></i> 行人重识别系统</h3>
+                        <p>基于深度学习的智能图像检索平台</p>
+                    </div>
+                    <div class="footer-section">
+                        <h3><i class="fas fa-address-card"></i> 联系方式</h3>
+                        <p><i class="fas fa-envelope"></i> 邮箱: contact@reid-system.com</p>
+                        <p><i class="fas fa-phone"></i> 电话: +86 123-4567-8900</p>
+                    </div>
+                </div>
+                <div class="footer-bottom">
+                    <p><i class="far fa-copyright"></i> 2025 行人重识别系统 版权所有</p>
+                </div>
+            </footer>
+        </div>
+    </div>
+    <!-- JavaScript文件 -->
+    <script src="../javascript/app.js"></script>
+</body>
+
+</html>

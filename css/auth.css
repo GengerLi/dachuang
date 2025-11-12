@@ -1,0 +1,445 @@
+/* auth.css - 认证页面样式 */
+.system-header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.system-logo {
+    font-size: 3rem;
+    margin-bottom: 15px;
+    color: #667eea;
+}
+
+.system-title {
+    color: #2c3e50;
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.system-subtitle {
+    color: #6c757d;
+    font-size: 1rem;
+    font-weight: 400;
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.auth-header h2 {
+    color: #2c3e50;
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.auth-header p {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.form-group {
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.input-with-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-icon {
+    position: absolute;
+    left: 15px;
+    color: #6c757d;
+    font-size: 16px;
+    z-index: 2;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 14px 16px 14px 45px;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    font-size: 15px;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+}
+
+.form-group input:focus {
+    border-color: #2575fc;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(37, 117, 252, 0.1);
+}
+
+.form-group input::placeholder {
+    color: #adb5bd;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #6c757d;
+    font-size: 16px;
+    user-select: none;
+    z-index: 2;
+    padding: 5px;
+    border-radius: 3px;
+    transition: background-color 0.3s ease;
+}
+
+.password-toggle:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* 密码强度容器样式优化 */
+.password-strength-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: #f8f9fa;
+    transition: all 0.3s ease;
+    animation: fadeIn 0.3s ease;
+}
+
+.password-strength {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: #e9ecef;
+    overflow: hidden;
+    position: relative;
+}
+
+.password-strength::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    border-radius: 3px;
+    transition: all 0.3s ease;
+}
+
+.password-strength.weak::after {
+    width: 33%;
+    background: #e74c3c;
+}
+
+.password-strength.medium::after {
+    width: 66%;
+    background: #f39c12;
+}
+
+.password-strength.strong::after {
+    width: 100%;
+    background: #2ecc71;
+}
+
+.password-strength-text {
+    font-size: 12px;
+    font-weight: 600;
+    min-width: 30px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.3s ease;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.password-strength-text.weak {
+    color: #e74c3c;
+    background: rgba(231, 76, 60, 0.1);
+    border: 1px solid rgba(231, 76, 60, 0.2);
+}
+
+.password-strength-text.medium {
+    color: #f39c12;
+    background: rgba(243, 156, 18, 0.1);
+    border: 1px solid rgba(243, 156, 18, 0.2);
+}
+
+.password-strength-text.strong {
+    color: #2ecc71;
+    background: rgba(46, 204, 113, 0.1);
+    border: 1px solid rgba(46, 204, 113, 0.2);
+}
+
+/* 密码提示 */
+.password-hint {
+    font-size: 12px;
+    color: #6c757d;
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 0;
+    animation: fadeIn 0.3s ease;
+}
+
+.password-hint i {
+    color: #2575fc;
+}
+
+/* 弱密码警告样式 */
+.weak-password-warning {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    color: #856404;
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin-top: 8px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: slideDown 0.3s ease;
+}
+
+.weak-password-warning i {
+    color: #f39c12;
+}
+
+.form-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    font-size: 14px;
+}
+
+.remember-me {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #6c757d;
+    cursor: pointer;
+}
+
+.remember-me input {
+    margin: 0;
+}
+
+.auth-link {
+    color: #2575fc;
+    cursor: pointer;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.auth-link:hover {
+    color: #1d63d8;
+    text-decoration: underline;
+}
+
+.auth-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 15px;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.auth-btn.primary {
+    background: linear-gradient(135deg, #6a11cb, #2575fc);
+    color: white;
+}
+
+.auth-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.auth-btn:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(37, 117, 252, 0.4);
+}
+
+.auth-switch {
+    text-align: center;
+    margin-top: 25px;
+    color: #6c757d;
+    font-size: 14px;
+}
+
+.auth-back {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+    color: #2575fc;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 14px;
+    transition: color 0.3s ease;
+    gap: 8px;
+}
+
+.auth-back:hover {
+    color: #1d63d8;
+}
+
+/* 错误、成功、信息消息样式 */
+.auth-error-message,
+.auth-success-message,
+.auth-info-message {
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    animation: fadeIn 0.3s ease;
+    border: 1px solid transparent;
+}
+
+.auth-error-message {
+    background-color: rgba(231, 76, 60, 0.1);
+    border-color: rgba(231, 76, 60, 0.2);
+    color: #c0392b;
+}
+
+.auth-success-message {
+    background-color: rgba(46, 204, 113, 0.1);
+    border-color: rgba(46, 204, 113, 0.2);
+    color: #27ae60;
+}
+
+.auth-info-message {
+    background-color: rgba(52, 152, 219, 0.1);
+    border-color: rgba(52, 152, 219, 0.2);
+    color: #2980b9;
+}
+
+.checkmark {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #ddd;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: transparent;
+    transition: all 0.3s ease;
+}
+
+.remember-me input:checked + .checkmark {
+    background: #667eea;
+    border-color: #667eea;
+    color: white;
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+    from { 
+        opacity: 0; 
+        transform: translateY(-5px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 响应式设计 */
+@media (max-width: 480px) {
+    .auth-header h2 {
+        font-size: 1.3rem;
+    }
+    
+    .form-options {
+        flex-direction: column;
+        gap: 15px;
+        align-items: flex-start;
+    }
+    
+    .auth-back {
+        margin-bottom: 15px;
+    }
+    
+    .password-strength-container {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+    }
+    
+    .password-strength-text {
+        align-self: flex-end;
+    }
+    
+    .password-hint {
+        font-size: 11px;
+    }
+    
+    .weak-password-warning {
+        font-size: 12px;
+        padding: 8px 10px;
+    }
+}
+
+/* 注册表单特定样式 */
+.register-form {
+    animation: fadeIn 0.4s ease;
+}
+
+/* 输入框焦点状态优化 */
+.form-group input:invalid {
+    border-color: #e74c3c;
+}
+
+.form-group input:valid {
+    border-color: #2ecc71;
+}
+
+/* 加载状态 */
+.fa-spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* 密码可见性切换按钮优化 */
+.password-toggle i {
+    transition: transform 0.3s ease;
+}
+
+.password-toggle:hover i {
+    transform: scale(1.1);
+}

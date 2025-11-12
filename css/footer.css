@@ -1,0 +1,60 @@
+/* footer.css - 底部样式 */
+.app-footer {
+    background: linear-gradient(135deg, #2c3e50, #34495e);
+    color: white;
+    margin-top: auto;
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 40px;
+}
+
+.footer-section h3 {
+    color: #3498db;
+    margin-bottom: 15px;
+    font-size: 1.2rem;
+}
+
+.footer-section p {
+    color: #bdc3c7;
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
+.footer-bottom {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 20px;
+    text-align: center;
+}
+
+.footer-bottom p {
+    color: #95a5a6;
+    margin: 0;
+    font-size: 14px;
+}
+
+/* 悬停效果 */
+.footer-section h3 {
+    transition: color 0.3s ease;
+}
+
+.footer-section:hover h3 {
+    color: #2980b9;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .footer-content {
+        padding: 30px 20px;
+        gap: 30px;
+    }
+    
+    .footer-section {
+        text-align: center;
+    }
+}
