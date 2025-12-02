@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="../css/components.css">
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/footer.css">
+    <link rel="stylesheet" href="../css/admin.css">
     <!-- Font Awesome图标库 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Vue.js -->
@@ -53,10 +54,17 @@
                     </div>
                     <h1 class="system-title">行人重识别系统</h1>
                     <p class="system-subtitle">基于深度学习的智能图像检索平台</p>
+                    <!-- 添加管理员入口 -->
+                    <div class="admin-entry">
+                        <a @click="currentAuthForm = 'admin'" class="admin-link">
+                            <i class="fas fa-shield-alt"></i>
+                            管理员入口
+                        </a>
+                    </div>
                 </div>
 
                 <!-- 登录表单 -->
-                <div v-if="currentAuthForm === 'login'" class="login-form">
+                <div v-if="currentAuthForm === 'login'" class="auth-form login-form">
                     <div class="auth-header">
                         <div class="auth-icon">
                             <i class="fas fa-sign-in-alt"></i>
@@ -128,8 +136,7 @@
                 </div>
 
                 <!-- 注册表单 -->
-                <!-- 注册表单 -->
-                <div v-if="currentAuthForm === 'register'" class="register-form">
+                <div v-else-if="currentAuthForm === 'register'" class="auth-form register-form">
                     <div class="auth-back" @click="currentAuthForm = 'login'">
                         <i class="fas fa-arrow-left"></i>
                         <span>返回登录</span>
@@ -147,9 +154,9 @@
                         <div class="form-group">
                             <div class="input-with-icon">
                                 <i class="fas fa-user input-icon"></i>
-                                <input type="text" v-model="registerForm.username" placeholder="用户名" required>
+                                <input type="text" v-model="registerForm.USERNAME" placeholder="用户名" required>
                             </div>
-                            <div class="auth-error-message" v-if="registerErrors.username">
+                            <div class="auth-error-message" v-if="registerErrors.USERNAME">
                                 <i class="fas fa-exclamation-circle"></i>
                                 用户名不能为空
                             </div>
@@ -158,9 +165,9 @@
                         <div class="form-group">
                             <div class="input-with-icon">
                                 <i class="fas fa-envelope input-icon"></i>
-                                <input type="email" v-model="registerForm.email" placeholder="电子邮箱" required>
+                                <input type="email" v-model="registerForm.EMAIL" placeholder="电子邮箱" required>
                             </div>
-                            <div class="auth-error-message" v-if="registerErrors.email">
+                            <div class="auth-error-message" v-if="registerErrors.EMAIL">
                                 <i class="fas fa-exclamation-circle"></i>
                                 请输入有效的电子邮箱
                             </div>
@@ -234,7 +241,7 @@
                 </div>
 
                 <!-- 重置密码表单 -->
-                <div v-if="currentAuthForm === 'reset'" class="reset-form">
+                <div v-else-if="currentAuthForm === 'reset'" class="auth-form reset-form">
                     <div class="auth-back" @click="currentAuthForm = 'login'">
                         <i class="fas fa-arrow-left"></i>
                         <span>返回登录</span>
@@ -270,6 +277,41 @@
                             <i class="fas fa-check-circle"></i>
                             重置链接已发送到您的邮箱，请查收。
                         </div>
+                    </form>
+                </div>
+
+                <!-- 管理员登录表单 -->
+                <div v-else-if="currentAuthForm === 'admin'" class="auth-form admin-form">
+                    <div class="auth-back" @click="switchToLogin">
+                        <i class="fas fa-arrow-left"></i>
+                        <span>返回登录</span>
+                    </div>
+
+                    <div class="auth-header">
+                        <div class="auth-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <h2>管理员登录</h2>
+                        <p>请输入管理员密钥</p>
+                    </div>
+
+                    <form @submit.prevent="adminLogin">
+                        <div class="form-group">
+                            <div class="input-with-icon">
+                                <i class="fas fa-key input-icon"></i>
+                                <input type="password" v-model="adminForm.secretKey" placeholder="管理员密钥" required>
+                            </div>
+                            <div class="auth-error-message" v-if="adminErrors.secretKey">
+                                <i class="fas fa-exclamation-circle"></i>
+                                请输入有效的管理员密钥
+                            </div>
+                        </div>
+
+                        <button type="submit" class="auth-btn primary" :disabled="authLoading">
+                            <i v-if="authLoading" class="fas fa-spinner fa-spin"></i>
+                            <i v-else class="fas fa-sign-in-alt"></i>
+                            {{ authLoading ? '登录中...' : '管理员登录' }}
+                        </button>
                     </form>
                 </div>
             </div>
@@ -315,6 +357,12 @@
                             @click="activeTab = 'recognition'">
                             <i class="fas fa-search nav-icon"></i>
                             <span class="nav-text">行人识别</span>
+                        </button>
+                        <!-- 管理员标签 -->
+                        <button v-if="isAdmin" :class="['nav-tab', { active: activeTab === 'admin' }]" 
+                                @click="activeTab = 'admin'">
+                            <i class="fas fa-users-cog nav-icon"></i>
+                            <span class="nav-text">用户管理</span>
                         </button>
                         <button :class="['nav-tab', { active: activeTab === 'settings' }]"
                             @click="activeTab = 'settings'">
@@ -369,7 +417,7 @@
                         <div class="intro-content">
                             <h2 class="intro-title">系统简介</h2>
                             <p class="intro-description">
-                                本系统采用先进的深度学习技术，能够对行人图像进行精准的特征提取和匹配识别。
+                                本系统采用yolov8数据集，能够对行人图像进行精准的特征提取和匹配识别。
                                 用户只需上传待识别的行人图片，系统即可快速返回最相似的匹配结果，为安防监控、
                                 人员管理等领域提供可靠的技术支持。
                             </p>
@@ -422,7 +470,6 @@
                                         <p>处理中...</p>
                                     </div>
                                 </div>
-                                <!-- 新增：匹配结果详细信息 -->
                                 <div v-if="matchedInfo" class="match-details">
                                     <div class="match-info-box">
                                         <p><i class="fas fa-percentage"></i> 相似度: {{ matchedInfo.similarity }}</p>
@@ -493,6 +540,242 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- 管理员页面 -->
+                <div v-if="activeTab === 'admin' && isAdmin" class="tab-content admin-tab">
+                    <div v-if="adminLoading" class="admin-loading" style="text-align:center; padding:40px;">
+                        <i class="fas fa-spinner fa-spin" style="font-size:36px; color:#007bff;"></i>
+                        <p style="margin-top:10px; font-size:18px;">正在加载用户数据...</p>
+                    </div>
+
+                    <div v-else class="admin-section">
+                        <h2 class="section-title"><i class="fas fa-users-cog"></i> 用户管理</h2>
+                        
+                        <!-- 管理员欢迎信息 -->
+                        <div class="admin-welcome">
+                            <div class="welcome-content">
+                                <i class="fas fa-shield-alt welcome-icon"></i>
+                                <div class="welcome-text">
+                                    <h3>管理员控制台</h3>
+                                    <p>您可以在此管理所有用户账户和数据</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 统计卡片 -->
+                        <div class="admin-stats">
+                            <div class="stat-card">
+                                <i class="fas fa-users"></i>
+                                <div class="stat-number">{{ adminUsers.length }}</div>
+                                <div class="stat-label">总用户数</div>
+                            </div>
+                            <div class="stat-card">
+                                <i class="fas fa-chart-line"></i>
+                                <div class="stat-number">{{ totalUsageCount }}</div>
+                                <div class="stat-label">总识别次数</div>
+                            </div>
+                            <div class="stat-card">
+                                <i class="fas fa-user-clock"></i>
+                                <div class="stat-number">{{ activeUsersCount }}</div>
+                                <div class="stat-label">活跃用户</div>
+                            </div>
+                            <div class="stat-card">
+                                <i class="fas fa-calendar-day"></i>
+                                <div class="stat-number">{{ newUsersTodayCount }}</div>
+                                <div class="stat-label">今日新增</div>
+                            </div>
+                        </div>
+
+                        <!-- 操作工具栏 -->
+                        <div class="admin-toolbar">
+                            <div class="toolbar-left">
+                                <!-- 搜索框 -->
+                                <div class="search-box">
+                                    <div class="input-with-icon">
+                                        <i class="fas fa-search input-icon"></i>
+                                        <input type="text" v-model="adminSearchTerm" placeholder="搜索用户名、邮箱或ID...">
+                                    </div>
+                                </div>
+                                
+                                <!-- 筛选选项 -->
+                                <div class="filter-options">
+                                    <select v-model="adminFilter" class="filter-select">
+                                        <option value="all">所有用户</option>
+                                        <option value="active">活跃用户</option>
+                                        <option value="inactive">非活跃用户</option>
+                                        <option value="today">今日新增</option>
+                                    </select>
+                                </div>
+                            </div>
+            
+                            <div class="toolbar-right">
+                                <button @click="loadAdminUsers" class="btn primary" :disabled="adminLoading">
+                                    <i class="fas fa-sync-alt" :class="{ 'fa-spin': adminLoading }"></i>
+                                    {{ adminLoading ? '加载中...' : '刷新数据' }}
+                                </button>
+                                <button @click="exportUserData" class="btn secondary">
+                                    <i class="fas fa-download"></i>
+                                    导出数据
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 加载状态 -->
+                        <div v-if="adminLoading && adminUsers.length === 0" class="loading-state">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>正在加载用户数据...</p>
+                        </div>
+
+                        <!-- 用户列表表格 -->
+                        <div v-if="!adminLoading || adminUsers.length > 0" class="users-table-container">
+                            <div class="table-responsive">
+                                <table class="users-table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>用户名</th>
+                                            <th>邮箱</th>
+                                            <th>识别次数</th>
+                                            <th>注册时间</th>
+                                            <th>最后登录</th>
+                                            <th>状态</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="user in filteredUsers" :key="user.id" 
+                                            :class="{ 'active-user': isActiveUser(user) }">
+                                            <td class="user-id">{{ user.id }}</td>
+                                            <td class="username">
+                                                <i class="fas fa-user"></i>
+                                                {{ user.username }}
+                                                <span v-if="hasDuplicateUsername(user)" class="duplicate-badge" title="存在重名用户">
+                                                    <i class="fas fa-exclamation-triangle"></i>
+                                                </span>
+                                            </td>
+                                            <td class="email">
+                                                <i class="fas fa-envelope"></i>
+                                                {{ user.email }}
+                                            </td>
+                                            <td class="usage-count">
+                                                <span class="count-badge" :class="getUsageLevel(user.usage_count)">
+                                                    {{ user.usage_count || 0 }}
+                                                </span>
+                                            </td>
+                                            <td class="registration-date">
+                                                <i class="fas fa-calendar-plus"></i>
+                                                {{ formatDate(user.registration_date) }}
+                                            </td>
+                                            <td class="last-used">
+                                                <i class="fas fa-clock"></i>
+                                                {{ formatLastUsed(user.last_used) }}
+                                            </td>
+                                            <td class="user-status">
+                                                <span class="status-badge" :class="getUserStatus(user)">
+                                                    <i :class="getStatusIcon(user)"></i>
+                                                    {{ getUserStatusText(user) }}
+                                                </span>
+                                            </td>
+                                            <td class="actions">
+                                                <div class="action-buttons">
+                                                    <button @click="editUser(user)" class="btn small primary" title="编辑用户">
+                                                        <i class="fas fa-edit"></i>
+                                                        编辑
+                                                    </button>
+                                                    <button @click="resetUserPassword(user.id, user.username)" 
+                                                            class="btn small secondary" title="重置密码">
+                                                        <i class="fas fa-key"></i>
+                                                        重置
+                                                    </button>
+                                                    <button @click="deleteUser(user.id, user.username)" 
+                                                            class="btn small danger" title="删除用户">
+                                                        <i class="fas fa-trash"></i>
+                                                        删除
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+            
+                            <!-- 分页控件 -->
+                            <div v-if="filteredUsers.length > 10" class="pagination">
+                                <button @click="prevPage" :disabled="currentPage === 1" class="page-btn">
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                                <span class="page-info">第 {{ currentPage }} 页，共 {{ totalPages }} 页</span>
+                                <button @click="nextPage" :disabled="currentPage === totalPages" class="page-btn">
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 空状态 -->
+                        <div v-if="!adminLoading && filteredUsers.length === 0" class="empty-state">
+                            <i class="fas fa-users"></i>
+                            <p>暂无用户数据</p>
+                            <p class="subtext" v-if="adminSearchTerm">尝试调整搜索条件</p>
+                            <button @click="loadAdminUsers" class="btn primary">
+                                <i class="fas fa-redo"></i>
+                                重新加载
+                            </button>
+                        </div>
+
+                        <!-- 用户编辑模态框 -->
+                        <div v-if="showEditModal" class="modal-overlay">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h3><i class="fas fa-edit"></i> 编辑用户信息</h3>
+                                    <button @click="closeEditModal" class="modal-close">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="form-group">
+                                        <label>用户名</label>
+                                        <input type="text" v-model="editForm.username" class="form-input">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>邮箱</label>
+                                        <input type="email" v-model="editForm.email" class="form-input">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>识别次数</label>
+                                        <input type="number" v-model="editForm.usage_count" class="form-input" min="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>最后登录时间</label>
+                                        <input type="datetime-local" v-model="editForm.last_used" class="form-input">
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button @click="closeEditModal" class="btn secondary">取消</button>
+                                    <button @click="saveUserEdit" class="btn primary">保存更改</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 管理员操作面板 -->
+                        <div class="admin-actions-panel">
+                            <h3><i class="fas fa-cogs"></i> 批量操作</h3>
+                            <div class="bulk-actions">
+                                <button @click="bulkResetPasswords" class="btn secondary">
+                                    <i class="fas fa-key"></i>
+                                    批量重置密码
+                                </button>
+                                <button @click="clearInactiveUsers" class="btn danger">
+                                    <i class="fas fa-trash"></i>
+                                    清理非活跃用户
+                                </button>
+                                <button @click="adminLogout" class="btn primary">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                    退出管理
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </main>
 
             <!-- 底部信息 -->
@@ -517,5 +800,4 @@
     <!-- JavaScript文件 -->
     <script src="../javascript/app.js"></script>
 </body>
-
 </html>

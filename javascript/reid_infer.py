@@ -1,7 +1,7 @@
 import os
 import sys
 import json
-import shutilaswww
+import shutil
 import numpy as np
 import warnings
 import torch

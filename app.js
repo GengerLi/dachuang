@@ -1,3 +1,4 @@
+
 new Vue({
     el: '#app',
     data: function () {
@@ -17,25 +18,11 @@ new Vue({
             adminErrors: {
                 secretKey: false
             },
+
+            // 管理员页面数据
             adminUsers: [],
             adminLoading: false,
             adminSearchTerm: '',
-            adminFilter: 'all',
-            currentPage: 1,
-            itemsPerPage: 10,
-
-            // 用户编辑模态框
-            showEditModal: false,
-            editForm: {
-                id: null,
-                username: '',
-                email: '',
-                usage_count: 0,
-                last_used: ''
-            },
-            
-            // 批量操作
-            selectedUsers: [],
 
             // 登录表单数据
             loginForm: {
@@ -253,69 +240,10 @@ new Vue({
                 var lastUsed = new Date(user.last_used);
                 return lastUsed > thirtyDaysAgo;
             }).length;
-        },
-        
-        // 过滤和分页用户列表
-        filteredAndPaginatedUsers: function () {
-            let users = this.adminUsers;
-            
-            // 搜索过滤
-            if (this.adminSearchTerm) {
-                const searchTerm = this.adminSearchTerm.toLowerCase();
-                users = users.filter(user => 
-                    user.username.toLowerCase().includes(searchTerm) ||
-                    user.email.toLowerCase().includes(searchTerm) ||
-                    user.id.toString().includes(searchTerm)
-                );
-            }
-            
-            // 状态过滤
-            switch (this.adminFilter) {
-                case 'active':
-                    users = users.filter(user => this.isActiveUser(user));
-                    break;
-                case 'inactive':
-                    users = users.filter(user => !this.isActiveUser(user));
-                    break;
-                case 'today':
-                    const today = new Date().toDateString();
-                    users = users.filter(user => {
-                        const regDate = new Date(user.registration_date).toDateString();
-                        return regDate === today;
-                    });
-                    break;
-            }
-            
-            // 分页
-            const startIndex = (this.currentPage - 1) * this.itemsPerPage;
-            return users.slice(startIndex, startIndex + this.itemsPerPage);
-        },
-        
-        // 总页数
-        totalPages: function () {
-            return Math.ceil(this.adminUsers.length / this.itemsPerPage);
-        },
-        
-        // 今日新增用户数
-        newUsersTodayCount: function () {
-            const today = new Date().toDateString();
-            return this.adminUsers.filter(user => {
-                const regDate = new Date(user.registration_date).toDateString();
-                return regDate === today;
-            }).length;
         }
     },
     methods: {
-         // ========== 认证相关方法 ==========
-         switchToLogin: function () {
-            this.currentAuthForm = 'login';
-        },
-
-        hasDuplicateUsername: function () {
-            return false;
-        },
-
-
+        // ========== 认证相关方法 ==========
 
         /**
          * 用户登录
@@ -546,6 +474,8 @@ new Vue({
 
             self.authLoading = true;
 
+            console.log('正在发送管理员登录请求...');
+
             fetch('http://localhost:3000/api/admin/login', {
                 method: 'POST',
                 headers: {
@@ -555,46 +485,37 @@ new Vue({
                     secretKey: self.adminForm.secretKey
                 })
             })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
+                .then(function (response) {
+                    console.log('收到响应:', response.status);
+                    return response.json();
+                })
+                .then(function (data) {
+                    console.log('管理员登录响应数据:', data);
 
-                        // ① 登录成功 → 进入管理员页面
+                    if (data.success) {
                         self.isAdmin = true;
                         self.isLoggedIn = true;
                         self.currentUser = '管理员';
                         self.currentUserEmail = 'admin@system.com';
-
-                        // ② 显示 loading 状态
-                        self.adminLoading = true;
-
-                        // ③ 切换 tab
                         self.activeTab = 'admin';
-
-                        // ④ 强制让界面立即渲染管理员空白页面
-                        self.$nextTick(() => {
-                            // ⑤ 再去加载数据（UI 已经渲染）
-                            self.loadAdminUsers();
-                        });
-
-                        // 清空输入框
-                        self.adminForm.secretKey = '';
+                        console.log('管理员登录成功，正在加载用户列表...');
+                        self.loadAdminUsers();
                     } else {
-                        alert(data.msg || '管理员密钥错误');
+                        alert(data.msg || '管理员登录失败');
+                        console.error('管理员登录失败:', data.msg);
                     }
                 })
-                .catch(err => {
-                    console.error('管理员登录错误:', err);
-                    alert('管理员登录失败，请检查后端服务');
+                .catch(function (error) {
+                    console.error('管理员登录请求失败:', error);
+                    alert('管理员登录失败，请检查网络连接和后端服务');
                 })
-                .finally(() => {
+                .finally(function () {
                     self.authLoading = false;
                 });
         },
 
-
         /**
-         * 从数据库加载用户列表
+         * 加载用户列表
          */
         loadAdminUsers: function () {
             var self = this;
@@ -602,101 +523,36 @@ new Vue({
             self.adminLoading = true;
 
             fetch('http://localhost:3000/api/admin/users')
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        self.adminUsers = data.users;
-                    } else {
-                        alert('加载用户失败: ' + data.msg);
-                    }
-                })
-                .catch(err => {
-                    console.error('加载用户失败:', err);
-                    alert('无法加载用户列表');
-                })
-                .finally(() => {
-                    self.adminLoading = false;
-                });
-        },
-
-
-        /**
-         * 编辑用户信息
-         */
-        editUser: function (user) {
-            this.editForm = {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                usage_count: user.usage_count || 0,
-                last_used: user.last_used ? this.formatDateTimeForInput(user.last_used) : ''
-            };
-            this.showEditModal = true;
-        },
-
-        /**
-         * 保存用户编辑
-         */
-        saveUserEdit: function () {
-            var self = this;
-            
-            if (!self.editForm.username || !self.editForm.email) {
-                alert('用户名和邮箱不能为空');
-                return;
-            }
-
-            fetch(`http://localhost:3000/api/admin/users/${self.editForm.id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(self.editForm)
-            })
                 .then(function (response) {
                     return response.json();
                 })
                 .then(function (data) {
                     if (data.success) {
-                        alert('用户信息更新成功');
-                        self.closeEditModal();
-                        self.loadAdminUsers(); // 重新加载数据
+                        self.adminUsers = data.users;
                     } else {
-                        alert('更新失败: ' + data.msg);
+                        alert('加载用户列表失败');
                     }
                 })
                 .catch(function (error) {
-                    console.error('更新用户信息失败:', error);
-                    alert('更新失败，请检查网络连接');
+                    console.error('加载用户列表失败:', error);
+                    alert('加载用户列表失败');
+                })
+                .finally(function () {
+                    self.adminLoading = false;
                 });
         },
 
         /**
-         * 关闭编辑模态框
-         */
-        closeEditModal: function () {
-            this.showEditModal = false;
-            this.editForm = {
-                id: null,
-                username: '',
-                email: '',
-                usage_count: 0,
-                last_used: ''
-            };
-        },
-
-        /**
-         * 从数据库删除用户
+         * 删除用户
          */
         deleteUser: function (userId, username) {
             var self = this;
 
-            if (!confirm(`确定要删除用户 "${username}" 吗？此操作将从数据库中永久删除！`)) {
+            if (!confirm('确定要删除用户 "' + username + '" 吗？此操作不可撤销！')) {
                 return;
             }
 
-            console.log(`🗑️ 正在删除用户: ${username} (ID: ${userId})`);
-
-            fetch(`http://localhost:3000/api/admin/users/${userId}`, {
+            fetch('http://localhost:3000/api/admin/users/' + userId, {
                 method: 'DELETE'
             })
                 .then(function (response) {
@@ -704,17 +560,15 @@ new Vue({
                 })
                 .then(function (data) {
                     if (data.success) {
-                        console.log('✅ 用户删除成功');
                         alert('用户删除成功');
-                        self.loadAdminUsers(); // 重新从数据库加载用户列表
+                        self.loadAdminUsers(); // 重新加载用户列表
                     } else {
                         alert(data.msg || '删除用户失败');
-                        console.error('❌ 删除用户失败:', data.msg);
                     }
                 })
                 .catch(function (error) {
-                    console.error('❌ 删除用户失败:', error);
-                    alert('删除用户失败，请检查网络连接');
+                    console.error('删除用户失败:', error);
+                    alert('删除用户失败');
                 });
         },
 
@@ -724,7 +578,7 @@ new Vue({
         resetUserPassword: function (userId, username) {
             var self = this;
 
-            var newPassword = prompt(`请输入用户 "${username}" 的新密码：`);
+            var newPassword = prompt('请输入用户 "' + username + '" 的新密码：');
 
             if (!newPassword) {
                 alert('密码不能为空');
@@ -736,9 +590,7 @@ new Vue({
                 return;
             }
 
-            console.log(`🔑 正在重置用户密码: ${username} (ID: ${userId})`);
-
-            fetch(`http://localhost:3000/api/admin/users/${userId}/reset-password`, {
+            fetch('http://localhost:3000/api/admin/users/' + userId + '/reset-password', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -752,15 +604,13 @@ new Vue({
                 })
                 .then(function (data) {
                     if (data.success) {
-                        console.log('✅ 密码重置成功');
                         alert('密码重置成功');
                     } else {
                         alert(data.msg || '密码重置失败');
-                        console.error('❌ 密码重置失败:', data.msg);
                     }
                 })
                 .catch(function (error) {
-                    console.error('❌ 密码重置失败:', error);
+                    console.error('密码重置失败:', error);
                     alert('密码重置失败');
                 });
         },
@@ -957,7 +807,6 @@ new Vue({
             }
         },
 
-
         /**
          * 处理图片识别
          */
@@ -1038,6 +887,36 @@ new Vue({
         // ========== 工具方法 ==========
 
         /**
+         * 重置登录表单
+         */
+        resetLoginForm: function () {
+            this.loginForm = {
+                username: '',
+                password: '',
+                remember: false
+            };
+            this.showLoginPassword = false;
+            this.loginErrors = { username: false, password: false };
+        },
+
+        /**
+         * 重置注册表单
+         */
+        resetRegisterForm: function () {
+            this.registerForm = {
+                username: '',
+                email: '',
+                password: '',
+                confirmPassword: ''
+            };
+            this.showRegisterPassword = false;
+            this.showConfirmPassword = false;
+            this.passwordStrength = '';
+            this.passwordSuggestions = [];
+            this.registerErrors = { username: false, email: false, password: false, confirmPassword: false };
+        },
+
+        /**
          * 重置图片数据
          */
         resetImageData: function () {
@@ -1070,277 +949,6 @@ new Vue({
                 console.error('日期格式化错误:', error);
                 return '无效日期';
             }
-        },
-
-        /**
-         * 重置登录表单
-         */
-        resetLoginForm: function () {
-            this.loginForm = {
-                username: '',
-                password: '',
-                remember: false
-            };
-            this.loginErrors = {
-                username: false,
-                password: false
-            };
-            this.showLoginPassword = false;
-        },
-
-        /**
-         * 重置注册表单
-         */
-        resetRegisterForm: function () {
-            this.registerForm = {
-                username: '',
-                email: '',
-                password: '',
-                confirmPassword: ''
-            };
-            this.registerErrors = {
-                username: false,
-                email: false,
-                password: false,
-                confirmPassword: false
-            };
-            this.showRegisterPassword = false;
-            this.showConfirmPassword = false;
-            this.passwordStrength = '';
-            this.passwordSuggestions = [];
-        },
-
-        // ========== 管理员专用方法 ==========
-
-        /**
-         * 上一页
-         */
-        prevPage: function () {
-            if (this.currentPage > 1) {
-                this.currentPage--;
-            }
-        },
-
-        /**
-         * 下一页
-         */
-        nextPage: function () {
-            if (this.currentPage < this.totalPages) {
-                this.currentPage++;
-            }
-        },
-
-        /**
-         * 判断用户是否活跃（最近30天有活动）
-         */
-        isActiveUser: function (user) {
-            if (!user.last_used) return false;
-            try {
-                var thirtyDaysAgo = new Date();
-                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-                var lastUsed = new Date(user.last_used);
-                return lastUsed > thirtyDaysAgo;
-            } catch (error) {
-                console.error('判断用户活跃状态错误:', error);
-                return false;
-            }
-        },
-
-        /**
-         * 获取用户状态
-         */
-        getUserStatus: function (user) {
-            return this.isActiveUser(user) ? 'active' : 'inactive';
-        },
-
-        /**
-         * 获取用户状态文本
-         */
-        getUserStatusText: function (user) {
-            return this.isActiveUser(user) ? '活跃' : '非活跃';
-        },
-
-        /**
-         * 获取状态图标
-         */
-        getStatusIcon: function (user) {
-            return this.isActiveUser(user) ? 'fas fa-check-circle' : 'fas fa-clock';
-        },
-
-        /**
-         * 获取使用级别样式
-         */
-        getUsageLevel: function (count) {
-            if (!count || count === 0) return 'low';
-            if (count <= 10) return 'medium';
-            return 'high';
-        },
-
-        /**
-         * 格式化最后使用时间显示
-         */
-        formatLastUsed: function (lastUsed) {
-            if (!lastUsed) return '从未使用';
-            try {
-                var date = new Date(lastUsed);
-                if (isNaN(date.getTime())) {
-                    return '从未使用';
-                }
-
-                var now = new Date();
-                var diffInMs = now - date;
-                var diffInMinutes = Math.floor(diffInMs / (1000 * 60));
-                var diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
-                var diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
-
-                if (diffInMinutes < 1) {
-                    return '刚刚';
-                } else if (diffInMinutes < 60) {
-                    return diffInMinutes + '分钟前';
-                } else if (diffInHours < 24) {
-                    return diffInHours + '小时前';
-                } else if (diffInDays < 7) {
-                    return diffInDays + '天前';
-                } else {
-                    return date.toLocaleDateString('zh-CN', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit'
-                    });
-                }
-            } catch (error) {
-                console.error('时间格式化错误:', error);
-                return '从未使用';
-            }
-        },
-
-        /**
-         * 格式化日期时间用于输入框
-         */
-        formatDateTimeForInput: function (dateString) {
-            if (!dateString) return '';
-            try {
-                var date = new Date(dateString);
-                if (isNaN(date.getTime())) {
-                    return '';
-                }
-                return date.toISOString().slice(0, 16);
-            } catch (error) {
-                console.error('日期时间格式化错误:', error);
-                return '';
-            }
-        },
-
-        /**
-         * 导出用户数据到CSV
-         */
-        exportUserData: function () {
-            var self = this;
-
-            if (self.adminUsers.length === 0) {
-                alert('没有可导出的用户数据');
-                return;
-            }
-
-            console.log("📊 正在生成专业版用户数据报表...");
-
-            // 统计信息
-            const totalUsers = self.adminUsers.length;
-            const activeUsers = self.adminUsers.filter(u => (u.USAGE_COUNT || 0) > 0).length;
-            const totalUsage = self.adminUsers.reduce((sum, u) => sum + (u.USAGE_COUNT || 0), 0);
-
-            const regDates = self.adminUsers
-                .map(u => u.REGISTRATION_DATE ? new Date(u.REGISTRATION_DATE) : null)
-                .filter(d => d !== null)
-                .sort((a, b) => a - b);
-
-            const earliestReg = regDates.length ? regDates[0].toLocaleString() : "无记录";
-            const latestReg   = regDates.length ? regDates[regDates.length - 1].toLocaleString() : "无记录";
-
-            const mostUsed = self.adminUsers.reduce((a, b) =>
-                (a.USAGE_COUNT || 0) > (b.USAGE_COUNT || 0) ? a : b
-            );
-
-            // 正确写法：只用 BOM，不写 data: 前缀
-            var csv = "\uFEFF";
-
-            csv += "########## 行人重识别系统 — 用户数据专业报表 ##########\n";
-            csv += "生成时间：" + new Date().toLocaleString() + "\n";
-            csv += "--------------------------------------------------------\n";
-            csv += "【统计信息摘要】\n";
-            csv += "用户总数：" + totalUsers + "\n";
-            csv += "活跃用户数：" + activeUsers + "\n";
-            csv += "累计识别次数：" + totalUsage + "\n";
-            csv += "最早注册时间：" + earliestReg + "\n";
-            csv += "最近注册时间：" + latestReg + "\n";
-            csv += "使用次数最多的用户：" +
-                    (mostUsed.USERNAME || "未知") +
-                    "（" + (mostUsed.USAGE_COUNT || 0) + " 次）\n";
-            csv += "########################################################\n\n";
-
-            csv += "ID, 用户名, 邮箱, 使用次数, 注册时间, 最近使用, 状态\n";
-            csv += "--------------------------------------------------------\n";
-
-            self.adminUsers.forEach(function (user) {
-                const status = self.getUserStatusText(user);
-
-                const row = [
-                    user.ID,
-                    `"${user.USERNAME}"`,
-                    `"${user.EMAIL}"`,
-                    user.USAGE_COUNT || 0,
-                    `"${self.formatDate(user.REGISTRATION_DATE)}"`,
-                    `"${self.formatLastUsed(user.LAST_USED)}"`,
-                    status
-                ].join(", ");
-
-                csv += row + "\n";
-            });
-
-            // 正确下载方式（不会丢内容）
-            var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-            var link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = "用户专业报表.csv";
-            link.click();
-
-            console.log("✅ 用户专业报表导出成功");
-        },
-
-
-
-
-        /**
-         * 批量重置密码（示例功能）
-         */
-        bulkResetPasswords: function () {
-            alert('批量重置密码功能正在开发中...');
-            console.log('🛠️ 批量重置密码功能开发中');
-        },
-
-        /**
-         * 清理非活跃用户（示例功能）
-         */
-        clearInactiveUsers: function () {
-            var inactiveUsers = this.adminUsers.filter(user => !this.isActiveUser(user));
-            
-            if (inactiveUsers.length === 0) {
-                alert('没有找到非活跃用户');
-                return;
-            }
-            
-            if (confirm(`找到 ${inactiveUsers.length} 个非活跃用户（30天内无活动）。确定要删除吗？此操作不可撤销！`)) {
-                console.log('🛠️ 清理非活跃用户功能开发中，找到的非活跃用户:', inactiveUsers);
-                alert('清理非活跃用户功能正在开发中');
-            }
-        },
-
-        /**
-         * 切换到登录表单 - 修复缺失的方法
-         */
-        switchToLogin: function () {
-            this.currentAuthForm = 'login';
-            this.adminForm.secretKey = '';
         }
     },
     mounted: function () {
@@ -1363,24 +971,6 @@ new Vue({
     },
 
     watch: {
-        // 监听认证表单变化
-        currentAuthForm: function(newVal, oldVal) {
-            console.log('认证表单变化:', oldVal, '->', newVal);
-        },
-        
-        // 监听活跃标签页变化
-        activeTab: function(newTab, oldTab) {
-            console.log('标签页变化:', oldTab, '->', newTab);
-            
-            // 当切换到管理员标签页且是管理员时，如果用户列表为空，自动加载数据
-            if (newTab === 'admin' && this.isAdmin && this.adminUsers.length === 0) {
-                console.log('🔄 切换到管理员界面，自动加载用户数据...');
-                setTimeout(() => {
-                    this.loadAdminUsers();
-                }, 100);
-            }
-        },
-        
         // 监听设置变化
         settings: {
             handler: function (newSettings) {

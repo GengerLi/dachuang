@@ -635,8 +635,13 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
-// ========== 管理员相关接口 ==========
+// ========== 启动服务器 ==========
+app.listen(PORT, () => {
+    console.log(`🌐 服务器运行中：http://localhost:${PORT}`);
+    console.log(`📊 健康检查：http://localhost:${PORT}/api/health`);
+    console.log(`👥 用户列表：http://localhost:${PORT}/api/users`);
 
+});
 // ========== 管理员登录 ==========
 app.post('/api/admin/login', async (req, res) => {
     const { secretKey } = req.body;
@@ -650,6 +655,9 @@ app.post('/api/admin/login', async (req, res) => {
             msg: '请输入管理员密钥'
         });
     }
+
+    // 管理员密钥配置
+    const ADMIN_SECRET_KEY = 'admin123456'; // 确保这个密钥正确
 
     if (secretKey !== ADMIN_SECRET_KEY) {
         console.log('管理员登录失败：密钥不匹配');
@@ -665,27 +673,16 @@ app.post('/api/admin/login', async (req, res) => {
         msg: '管理员登录成功'
     });
 });
-
 // ========== 获取所有用户列表 ==========
 app.get('/api/admin/users', async (req, res) => {
     try {
         const client = await pool.connect();
         const result = await client.query(`
-            SELECT 
-                id, 
-                username, 
-                email, 
-                usage_count, 
-                last_used, 
-                registration_date,
-                created_at,
-                settings
+            SELECT id, username, email, usage_count, last_used, registration_date, created_at 
             FROM users 
             ORDER BY created_at DESC
         `);
         client.release();
-        
-        console.log(`✅ 管理员获取用户列表，共 ${result.rows.length} 个用户`);
         
         res.json({
             success: true,
@@ -709,7 +706,7 @@ app.delete('/api/admin/users/:id', async (req, res) => {
         
         // 检查用户是否存在
         const userCheck = await client.query(
-            'SELECT id, username, email FROM users WHERE id = $1',
+            'SELECT id, username FROM users WHERE id = $1',
             [userId]
         );
         
@@ -721,16 +718,13 @@ app.delete('/api/admin/users/:id', async (req, res) => {
             });
         }
 
-        const user = userCheck.rows[0];
+        const username = userCheck.rows[0].username;
 
-        // 删除用户相关的图片数据
-        await client.query('DELETE FROM user_images WHERE user_email = $1', [user.email]);
-        
         // 删除用户
         await client.query('DELETE FROM users WHERE id = $1', [userId]);
         client.release();
         
-        console.log(`管理员删除用户: ${user.username} (ID: ${userId}, 邮箱: ${user.email})`);
+        console.log(`✅ 管理员删除用户: ${username} (ID: ${userId})`);
         
         res.json({
             success: true,
@@ -762,7 +756,7 @@ app.post('/api/admin/users/:id/reset-password', async (req, res) => {
         
         // 检查用户是否存在
         const userCheck = await client.query(
-            'SELECT id, username, email FROM users WHERE id = $1',
+            'SELECT id, username FROM users WHERE id = $1',
             [userId]
         );
         
@@ -774,7 +768,7 @@ app.post('/api/admin/users/:id/reset-password', async (req, res) => {
             });
         }
 
-        const user = userCheck.rows[0];
+        const username = userCheck.rows[0].username;
 
         // 更新密码
         await client.query(
@@ -784,7 +778,7 @@ app.post('/api/admin/users/:id/reset-password', async (req, res) => {
         
         client.release();
         
-        console.log(`✅ 管理员重置用户密码: ${user.username} (ID: ${userId}, 邮箱: ${user.email})`);
+        console.log(`✅ 管理员重置用户密码: ${username} (ID: ${userId})`);
         
         res.json({
             success: true,
@@ -797,113 +791,4 @@ app.post('/api/admin/users/:id/reset-password', async (req, res) => {
             msg: '重置密码失败'
         });
     }
-});
-
-// ========== 获取管理员统计信息 ==========
-app.get('/api/admin/stats', async (req, res) => {
-    try {
-        const client = await pool.connect();
-        
-        // 总用户数
-        const userCountResult = await client.query('SELECT COUNT(*) as total_users FROM users');
-        
-        // 总识别次数
-        const usageResult = await client.query('SELECT SUM(usage_count) as total_usage FROM users');
-        
-        // 活跃用户数（最近30天有活动的）
-        const activeUsersResult = await client.query(`
-            SELECT COUNT(*) as active_users 
-            FROM users 
-            WHERE last_used >= NOW() - INTERVAL '30 days'
-        `);
-        
-        // 今日新增用户
-        const todayUsersResult = await client.query(`
-            SELECT COUNT(*) as today_users 
-            FROM users 
-            WHERE created_at::date = CURRENT_DATE
-        `);
-        
-        client.release();
-        
-        const stats = {
-            totalUsers: parseInt(userCountResult.rows[0].total_users),
-            totalUsage: parseInt(usageResult.rows[0].total_usage || 0),
-            activeUsers: parseInt(activeUsersResult.rows[0].active_users),
-            todayUsers: parseInt(todayUsersResult.rows[0].today_users)
-        };
-        
-        res.json({
-            success: true,
-            stats: stats
-        });
-    } catch (err) {
-        console.error('获取管理员统计信息错误:', err);
-        res.status(500).json({
-            success: false,
-            msg: '获取统计信息失败'
-        });
-    }
-});
-
-// ========== 更新用户信息 ==========
-app.put('/api/admin/users/:id', async (req, res) => {
-    try {
-        const userId = req.params.id;
-        const { username, email, usage_count, last_used } = req.body;
-        
-        if (!username || !email) {
-            return res.status(400).json({
-                success: false,
-                msg: '用户名和邮箱不能为空'
-            });
-        }
-
-        const client = await pool.connect();
-        
-        // 检查用户是否存在
-        const userCheck = await client.query(
-            'SELECT id FROM users WHERE id = $1',
-            [userId]
-        );
-        
-        if (userCheck.rows.length === 0) {
-            client.release();
-            return res.status(404).json({
-                success: false,
-                msg: '用户不存在'
-            });
-        }
-
-        // 更新用户信息
-        await client.query(
-            `UPDATE users 
-             SET username = $1, email = $2, usage_count = $3, last_used = $4 
-             WHERE id = $5`,
-            [username, email, usage_count || 0, last_used || null, userId]
-        );
-        
-        client.release();
-        
-        console.log(`✅ 管理员更新用户信息: ID ${userId}`);
-        
-        res.json({
-            success: true,
-            msg: '用户信息更新成功'
-        });
-    } catch (err) {
-        console.error('更新用户信息错误:', err);
-        res.status(500).json({
-            success: false,
-            msg: '更新用户信息失败'
-        });
-    }
-});
-
-// ========== 启动服务器 ==========
-app.listen(PORT, () => {
-    console.log(`🌐 服务器运行中：http://localhost:${PORT}`);
-    console.log(`📊 健康检查：http://localhost:${PORT}/api/health`);
-    console.log(`👥 用户列表：http://localhost:${PORT}/api/users`);
-    console.log(`🔐 管理员入口：http://localhost:${PORT}`);
 });
