@@ -533,7 +533,8 @@ new Vue({
         /**
          * 管理员登录
          */
-        adminLogin: function () {
+        adminLogin: function () 
+        {
             var self = this;
 
             self.adminErrors = { secretKey: false };
@@ -555,43 +556,35 @@ new Vue({
                     secretKey: self.adminForm.secretKey
                 })
             })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-
-                        // ① 登录成功 → 进入管理员页面
-                        self.isAdmin = true;
-                        self.isLoggedIn = true;
-                        self.currentUser = '管理员';
-                        self.currentUserEmail = 'admin@system.com';
-
-                        // ② 显示 loading 状态
-                        self.adminLoading = true;
-
-                        // ③ 切换 tab
-                        self.activeTab = 'admin';
-
-                        // ④ 强制让界面立即渲染管理员空白页面
-                        self.$nextTick(() => {
-                            // ⑤ 再去加载数据（UI 已经渲染）
-                            self.loadAdminUsers();
-                        });
-
-                        // 清空输入框
-                        self.adminForm.secretKey = '';
-                    } else {
-                        alert(data.msg || '管理员密钥错误');
-                    }
-                })
-                .catch(err => {
-                    console.error('管理员登录错误:', err);
-                    alert('管理员登录失败，请检查后端服务');
-                })
-                .finally(() => {
-                    self.authLoading = false;
-                });
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    // 登录成功
+                    self.isAdmin = true;
+                    self.isLoggedIn = true;
+                    self.currentUser = '管理员';
+                    self.currentUserEmail = 'admin@system.com';
+                    
+                    // 清空输入框
+                    self.adminForm.secretKey = '';
+                    
+                    // 显示管理员界面
+                    self.activeTab = 'admin';
+                    
+                    // 立即加载用户数据
+                    self.loadAdminUsers();
+                } else {
+                    alert(data.msg || '管理员密钥错误');
+                }
+            })
+            .catch(err => {
+                console.error('管理员登录错误:', err);
+                alert('管理员登录失败，请检查后端服务');
+            })
+            .finally(() => {
+                self.authLoading = false;
+            });
         },
-
 
         /**
          * 从数据库加载用户列表
@@ -600,19 +593,40 @@ new Vue({
             var self = this;
 
             self.adminLoading = true;
+            
+            console.log('🔄 正在加载用户数据...');
 
             fetch('http://localhost:3000/api/admin/users')
                 .then(res => res.json())
                 .then(data => {
-                    if (data.success) {
-                        self.adminUsers = data.users;
+                    console.log('✅ 后端返回的用户数据:', data); // 重要：查看实际数据结构
+                    
+                    if (data.success && data.users) {
+                        // 统一处理字段名，适配各种可能的格式
+                        self.adminUsers = data.users.map(user => {
+                            // 转换所有可能的字段名格式为统一的小写格式
+                            return {
+                                id: user.id || user.ID || user.user_id || 0,
+                                username: user.username || user.USERNAME || user.userName || '未知用户',
+                                email: user.email || user.EMAIL || user.mail || '未知邮箱',
+                                usage_count: user.usage_count || user.USAGE_COUNT || user.usageCount || user.count || 0,
+                                registration_date: user.registration_date || user.REGISTRATION_DATE || 
+                                                user.regDate || user.create_time || null,
+                                last_used: user.last_used || user.LAST_USED || user.lastUsed || 
+                                        user.last_login || user.update_time || null
+                            };
+                        });
+                        
+                        console.log('📊 处理后的用户数据:', self.adminUsers);
+                        console.log('✅ 成功加载', self.adminUsers.length, '个用户');
                     } else {
-                        alert('加载用户失败: ' + data.msg);
+                        console.error('❌ 加载用户失败:', data.msg);
+                        alert('加载用户失败: ' + (data.msg || '未知错误'));
                     }
                 })
                 .catch(err => {
-                    console.error('加载用户失败:', err);
-                    alert('无法加载用户列表');
+                    console.error('❌ 加载用户失败:', err);
+                    alert('无法加载用户列表，请检查网络连接');
                 })
                 .finally(() => {
                     self.adminLoading = false;

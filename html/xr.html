@@ -649,9 +649,6 @@
                                             <td class="username">
                                                 <i class="fas fa-user"></i>
                                                 {{ user.username }}
-                                                <span v-if="hasDuplicateUsername(user)" class="duplicate-badge" title="存在重名用户">
-                                                    <i class="fas fa-exclamation-triangle"></i>
-                                                </span>
                                             </td>
                                             <td class="email">
                                                 <i class="fas fa-envelope"></i>
@@ -659,7 +656,7 @@
                                             </td>
                                             <td class="usage-count">
                                                 <span class="count-badge" :class="getUsageLevel(user.usage_count)">
-                                                    {{ user.usage_count || 0 }}
+                                                    {{ user.usage_count }}
                                                 </span>
                                             </td>
                                             <td class="registration-date">
