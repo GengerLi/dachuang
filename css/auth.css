@@ -227,10 +227,14 @@
     gap: 8px;
     color: #6c757d;
     cursor: pointer;
+    position: relative;
 }
 
 .remember-me input {
-    margin: 0;
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
 }
 
 .auth-link {

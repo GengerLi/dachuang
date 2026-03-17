@@ -8,9 +8,11 @@ new Vue({
             currentUserEmail: '',
             currentAuthForm: 'login', // login, register, reset, admin
             authLoading: false,
+            authToken: '',
 
             // 管理员相关
             isAdmin: false,
+            adminToken: '',
             adminForm: {
                 secretKey: ''
             },
@@ -315,6 +317,58 @@ new Vue({
             return false;
         },
 
+        getUserAuthHeaders: function (headers) {
+            var finalHeaders = headers ? Object.assign({}, headers) : {};
+
+            if (this.authToken) {
+                finalHeaders.Authorization = 'Bearer ' + this.authToken;
+            }
+
+            return finalHeaders;
+        },
+
+        getAdminAuthHeaders: function (headers) {
+            var finalHeaders = headers ? Object.assign({}, headers) : {};
+
+            if (this.adminToken) {
+                finalHeaders.Authorization = 'Bearer ' + this.adminToken;
+            }
+
+            return finalHeaders;
+        },
+
+        loadCurrentUserProfile: function () {
+            var self = this;
+
+            if (!self.authToken) {
+                return Promise.resolve();
+            }
+
+            return fetch('http://localhost:3000/api/user/profile', {
+                method: 'GET',
+                headers: self.getUserAuthHeaders()
+            })
+                .then(function (response) {
+                    return response.json();
+                })
+                .then(function (data) {
+                    if (!data.success || !data.user) {
+                        throw new Error(data.msg || '鑾峰彇鐢ㄦ埛淇℃伅澶辫触');
+                    }
+
+                    self.currentUser = data.user.username;
+                    self.currentUserEmail = data.user.email;
+                    self.usageCount = data.user.usageCount || 0;
+                    self.lastUsed = data.user.lastUsed;
+                    self.registrationDate = data.user.registrationDate;
+                    self.settings = data.user.settings || self.settings;
+                })
+                .catch(function (error) {
+                    console.error('鑾峰彇鐢ㄦ埛淇℃伅澶辫触:', error);
+                    self.logout();
+                });
+        },
+
 
 
         /**
@@ -359,8 +413,11 @@ new Vue({
                         // 登录成功
                         self.loginSuccess = true;
                         self.isLoggedIn = true;
+                        self.isAdmin = false;
                         self.currentUser = data.user.username;
                         self.currentUserEmail = data.user.email;
+                        self.authToken = data.token || '';
+                        self.adminToken = '';
 
                         // 更新用户数据
                         self.usageCount = data.user.usageCount || 0;
@@ -372,6 +429,11 @@ new Vue({
                         if (self.loginForm.remember) {
                             localStorage.setItem('currentUser', self.currentUser);
                             localStorage.setItem('currentUserEmail', self.currentUserEmail);
+                            localStorage.setItem('authToken', self.authToken);
+                        } else {
+                            localStorage.removeItem('currentUser');
+                            localStorage.removeItem('currentUserEmail');
+                            localStorage.removeItem('authToken');
                         }
 
                         // 重置表单
@@ -562,6 +624,11 @@ new Vue({
                     // 登录成功
                     self.isAdmin = true;
                     self.isLoggedIn = true;
+                    self.adminToken = data.token || '';
+                    self.authToken = '';
+                    localStorage.removeItem('currentUser');
+                    localStorage.removeItem('currentUserEmail');
+                    localStorage.removeItem('authToken');
                     self.currentUser = '管理员';
                     self.currentUserEmail = 'admin@system.com';
                     
@@ -596,7 +663,9 @@ new Vue({
             
             console.log('🔄 正在加载用户数据...');
 
-            fetch('http://localhost:3000/api/admin/users')
+            fetch('http://localhost:3000/api/admin/users', {
+                headers: self.getAdminAuthHeaders()
+            })
                 .then(res => res.json())
                 .then(data => {
                     console.log('✅ 后端返回的用户数据:', data); // 重要：查看实际数据结构
@@ -661,9 +730,9 @@ new Vue({
 
             fetch(`http://localhost:3000/api/admin/users/${self.editForm.id}`, {
                 method: 'PUT',
-                headers: {
+                headers: self.getAdminAuthHeaders({
                     'Content-Type': 'application/json'
-                },
+                }),
                 body: JSON.stringify(self.editForm)
             })
                 .then(function (response) {
@@ -711,7 +780,8 @@ new Vue({
             console.log(`🗑️ 正在删除用户: ${username} (ID: ${userId})`);
 
             fetch(`http://localhost:3000/api/admin/users/${userId}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: self.getAdminAuthHeaders()
             })
                 .then(function (response) {
                     return response.json();
@@ -754,9 +824,9 @@ new Vue({
 
             fetch(`http://localhost:3000/api/admin/users/${userId}/reset-password`, {
                 method: 'POST',
-                headers: {
+                headers: self.getAdminAuthHeaders({
                     'Content-Type': 'application/json'
-                },
+                }),
                 body: JSON.stringify({
                     newPassword: newPassword
                 })
@@ -785,6 +855,7 @@ new Vue({
         adminLogout: function () {
             this.isAdmin = false;
             this.isLoggedIn = false;
+            this.adminToken = '';
             this.currentUser = '';
             this.currentUserEmail = '';
             this.adminForm.secretKey = '';
@@ -802,10 +873,12 @@ new Vue({
                 this.adminLogout();
             } else {
                 this.isLoggedIn = false;
+                this.authToken = '';
                 this.currentUser = '';
                 this.currentUserEmail = '';
                 localStorage.removeItem('currentUser');
                 localStorage.removeItem('currentUserEmail');
+                localStorage.removeItem('authToken');
 
                 // 重置所有状态
                 this.resetLoginForm();
@@ -997,11 +1070,11 @@ new Vue({
                     // 构建FormData发送到后端
                     var formData = new FormData();
                     formData.append('image', blob, 'query.jpg');
-                    formData.append('email', self.currentUserEmail);
 
                     // 调用后端识别接口
                     return fetch('http://localhost:3000/api/reid', {
                         method: 'POST',
+                        headers: self.getUserAuthHeaders(),
                         body: formData
                     });
                 })
@@ -1020,8 +1093,13 @@ new Vue({
                         };
 
                         // 更新使用统计
-                        self.usageCount++;
-                        self.lastUsed = new Date().toISOString();
+                        if (data.usage) {
+                            self.usageCount = data.usage.usageCount || 0;
+                            self.lastUsed = data.usage.lastUsed;
+                        } else {
+                            self.usageCount++;
+                            self.lastUsed = new Date().toISOString();
+                        }
 
                         console.log('图片识别完成，最相似结果:', self.matchedInfo);
                     } else {
@@ -1250,75 +1328,98 @@ new Vue({
          */
         exportUserData: function () {
             var self = this;
+            var xlsx = window.XLSX;
+            var normalizedUsers = self.adminUsers.map(function (user) {
+                return {
+                    id: user.id || user.ID || 0,
+                    username: user.username || user.USERNAME || '未知用户',
+                    email: user.email || user.EMAIL || '未知邮箱',
+                    usage_count: user.usage_count || user.USAGE_COUNT || 0,
+                    registration_date: user.registration_date || user.REGISTRATION_DATE || null,
+                    last_used: user.last_used || user.LAST_USED || null
+                };
+            });
 
-            if (self.adminUsers.length === 0) {
+            if (normalizedUsers.length === 0) {
                 alert('没有可导出的用户数据');
                 return;
             }
 
-            console.log("📊 正在生成专业版用户数据报表...");
+            if (!xlsx || !xlsx.utils || !xlsx.writeFile) {
+                alert('Excel 导出组件加载失败，请刷新页面后重试');
+                return;
+            }
 
-            // 统计信息
-            const totalUsers = self.adminUsers.length;
-            const activeUsers = self.adminUsers.filter(u => (u.USAGE_COUNT || 0) > 0).length;
-            const totalUsage = self.adminUsers.reduce((sum, u) => sum + (u.USAGE_COUNT || 0), 0);
+            console.log("📊 正在生成 Excel 用户数据报表...");
 
-            const regDates = self.adminUsers
-                .map(u => u.REGISTRATION_DATE ? new Date(u.REGISTRATION_DATE) : null)
-                .filter(d => d !== null)
+            const totalUsers = normalizedUsers.length;
+            const activeUsers = normalizedUsers.filter(function (user) {
+                return self.isActiveUser(user);
+            }).length;
+            const totalUsage = normalizedUsers.reduce(function (sum, user) {
+                return sum + (user.usage_count || 0);
+            }, 0);
+            const regDates = normalizedUsers
+                .map(function (user) {
+                    return user.registration_date ? new Date(user.registration_date) : null;
+                })
+                .filter(function (date) {
+                    return date && !isNaN(date.getTime());
+                })
                 .sort((a, b) => a - b);
-
             const earliestReg = regDates.length ? regDates[0].toLocaleString() : "无记录";
-            const latestReg   = regDates.length ? regDates[regDates.length - 1].toLocaleString() : "无记录";
+            const latestReg = regDates.length ? regDates[regDates.length - 1].toLocaleString() : "无记录";
+            const mostUsed = normalizedUsers.reduce(function (winner, user) {
+                if (!winner) {
+                    return user;
+                }
 
-            const mostUsed = self.adminUsers.reduce((a, b) =>
-                (a.USAGE_COUNT || 0) > (b.USAGE_COUNT || 0) ? a : b
-            );
-
-            // 正确写法：只用 BOM，不写 data: 前缀
-            var csv = "\uFEFF";
-
-            csv += "########## 行人重识别系统 — 用户数据专业报表 ##########\n";
-            csv += "生成时间：" + new Date().toLocaleString() + "\n";
-            csv += "--------------------------------------------------------\n";
-            csv += "【统计信息摘要】\n";
-            csv += "用户总数：" + totalUsers + "\n";
-            csv += "活跃用户数：" + activeUsers + "\n";
-            csv += "累计识别次数：" + totalUsage + "\n";
-            csv += "最早注册时间：" + earliestReg + "\n";
-            csv += "最近注册时间：" + latestReg + "\n";
-            csv += "使用次数最多的用户：" +
-                    (mostUsed.USERNAME || "未知") +
-                    "（" + (mostUsed.USAGE_COUNT || 0) + " 次）\n";
-            csv += "########################################################\n\n";
-
-            csv += "ID, 用户名, 邮箱, 使用次数, 注册时间, 最近使用, 状态\n";
-            csv += "--------------------------------------------------------\n";
-
-            self.adminUsers.forEach(function (user) {
-                const status = self.getUserStatusText(user);
-
-                const row = [
-                    user.ID,
-                    `"${user.USERNAME}"`,
-                    `"${user.EMAIL}"`,
-                    user.USAGE_COUNT || 0,
-                    `"${self.formatDate(user.REGISTRATION_DATE)}"`,
-                    `"${self.formatLastUsed(user.LAST_USED)}"`,
-                    status
-                ].join(", ");
-
-                csv += row + "\n";
+                return (user.usage_count || 0) > (winner.usage_count || 0) ? user : winner;
+            }, null);
+            const generatedAt = new Date();
+            const summaryRows = [
+                ['生成时间', generatedAt.toLocaleString('zh-CN')],
+                ['导出条数', totalUsers],
+                ['活跃用户数', activeUsers],
+                ['累计识别次数', totalUsage],
+                ['最早注册时间', earliestReg],
+                ['最近注册时间', latestReg],
+                ['最高使用用户', mostUsed ? (mostUsed.username + '（' + (mostUsed.usage_count || 0) + ' 次）') : '无记录']
+            ];
+            const detailRows = normalizedUsers.map(function (user) {
+                return {
+                    ID: user.id,
+                    用户名: user.username,
+                    邮箱: user.email,
+                    使用次数: user.usage_count,
+                    注册时间: self.formatDate(user.registration_date),
+                    最近使用: self.formatLastUsed(user.last_used),
+                    状态: self.getUserStatusText(user)
+                };
             });
+            var workbook = xlsx.utils.book_new();
+            var summarySheet = xlsx.utils.aoa_to_sheet(summaryRows);
+            var detailSheet = xlsx.utils.json_to_sheet(detailRows);
 
-            // 正确下载方式（不会丢内容）
-            var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-            var link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = "用户专业报表.csv";
-            link.click();
+            summarySheet['!cols'] = [
+                { wch: 18 },
+                { wch: 34 }
+            ];
+            detailSheet['!cols'] = [
+                { wch: 10 },
+                { wch: 18 },
+                { wch: 30 },
+                { wch: 12 },
+                { wch: 22 },
+                { wch: 22 },
+                { wch: 12 }
+            ];
 
-            console.log("✅ 用户专业报表导出成功");
+            xlsx.utils.book_append_sheet(workbook, summarySheet, '统计摘要');
+            xlsx.utils.book_append_sheet(workbook, detailSheet, '用户列表');
+            xlsx.writeFile(workbook, "用户专业报表.xlsx");
+
+            console.log("✅ 用户 Excel 报表导出成功");
         },
 
 
@@ -1364,11 +1465,14 @@ new Vue({
         // 检查登录状态
         var savedUser = localStorage.getItem('currentUser');
         var savedEmail = localStorage.getItem('currentUserEmail');
+        var savedToken = localStorage.getItem('authToken');
 
-        if (savedUser && savedEmail) {
+        if (savedUser && savedEmail && savedToken) {
             this.isLoggedIn = true;
             this.currentUser = savedUser;
             this.currentUserEmail = savedEmail;
+            this.authToken = savedToken;
+            this.loadCurrentUserProfile();
             console.log('自动登录用户:', savedUser);
         }
 
@@ -1402,9 +1506,9 @@ new Vue({
                 if (this.isLoggedIn && !this.isAdmin) {
                     fetch('http://localhost:3000/api/user/settings', {
                         method: 'PUT',
-                        headers: {
+                        headers: self.getUserAuthHeaders({
                             'Content-Type': 'application/json'
-                        },
+                        }),
                         body: JSON.stringify({
                             email: self.currentUserEmail,
                             settings: newSettings

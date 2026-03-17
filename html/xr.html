@@ -53,14 +53,7 @@
                         <i class="fas fa-user-friends"></i>
                     </div>
                     <h1 class="system-title">行人重识别系统</h1>
-                    <p class="system-subtitle">基于深度学习的智能图像检索平台</p>
-                    <!-- 添加管理员入口 -->
-                    <div class="admin-entry">
-                        <a @click="currentAuthForm = 'admin'" class="admin-link">
-                            <i class="fas fa-shield-alt"></i>
-                            管理员入口
-                        </a>
-                    </div>
+                    <p class="system-subtitle">基于Web的智能行人重识别系统</p>
                 </div>
 
                 <!-- 登录表单 -->
@@ -154,9 +147,9 @@
                         <div class="form-group">
                             <div class="input-with-icon">
                                 <i class="fas fa-user input-icon"></i>
-                                <input type="text" v-model="registerForm.USERNAME" placeholder="用户名" required>
+                                <input type="text" v-model="registerForm.username" placeholder="用户名" required>
                             </div>
-                            <div class="auth-error-message" v-if="registerErrors.USERNAME">
+                            <div class="auth-error-message" v-if="registerErrors.username">
                                 <i class="fas fa-exclamation-circle"></i>
                                 用户名不能为空
                             </div>
@@ -165,9 +158,9 @@
                         <div class="form-group">
                             <div class="input-with-icon">
                                 <i class="fas fa-envelope input-icon"></i>
-                                <input type="email" v-model="registerForm.EMAIL" placeholder="电子邮箱" required>
+                                <input type="email" v-model="registerForm.email" placeholder="电子邮箱" required>
                             </div>
-                            <div class="auth-error-message" v-if="registerErrors.EMAIL">
+                            <div class="auth-error-message" v-if="registerErrors.email">
                                 <i class="fas fa-exclamation-circle"></i>
                                 请输入有效的电子邮箱
                             </div>
@@ -380,7 +373,7 @@
                             <div class="welcome-text">
                                 <h1 class="welcome-title">行人重识别系统</h1>
                                 <p class="welcome-description">
-                                    基于深度学习的智能图像检索平台，为您提供精准高效的行人识别服务
+                                    基于Web的智能行人重识别系统，为您提供精准高效的行人识别服务
                                 </p>
                                 <div class="welcome-stats">
                                     <div class="stat-item">
@@ -780,7 +773,7 @@
                 <div class="footer-content">
                     <div class="footer-section">
                         <h3><i class="fas fa-user-friends"></i> 行人重识别系统</h3>
-                        <p>基于深度学习的智能图像检索平台</p>
+                        <p>基于Web的智能行人重识别系统</p>
                     </div>
                     <div class="footer-section">
                         <h3><i class="fas fa-address-card"></i> 联系方式</h3>
@@ -795,6 +788,7 @@
         </div>
     </div>
     <!-- JavaScript文件 -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="../javascript/app.js"></script>
 </body>
 </html>

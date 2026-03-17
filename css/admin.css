@@ -1,34 +1,6 @@
 /* admin.css - 管理员界面样式 */
 
 /* 管理员入口样式 */
-.admin-entry {
-    margin-top: 15px;
-    text-align: center;
-}
-
-.admin-link {
-    color: #667eea;
-    cursor: pointer;
-    font-weight: 500;
-    font-size: 14px;
-    transition: all 0.3s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    border: 1px solid #667eea;
-    border-radius: 6px;
-    background: rgba(102, 126, 234, 0.1);
-}
-
-.admin-link:hover {
-    color: white;
-    background: #667eea;
-    text-decoration: none;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-}
-
 /* 管理员登录表单 */
 .admin-form {
     animation: fadeIn 0.4s ease;
