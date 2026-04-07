@@ -1,3 +1,6 @@
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
 const crypto = require('crypto');
 const express = require('express');
 const cors = require('cors');
@@ -5,7 +8,6 @@ const multer = require('multer');
 const { Pool } = require('pg');
 const fs = require('fs');
 const fsp = fs.promises;
-const path = require('path');
 const { spawn } = require('child_process');
 
 const app = express();

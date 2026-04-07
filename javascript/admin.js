@@ -23,7 +23,9 @@
         el: '#admin-app',
         data: function () {
             return {
-                apiBase: window.location.origin || 'http://localhost:3000',
+                apiBase: window.location.origin && window.location.origin !== 'null'
+                    ? window.location.origin
+                    : '',
                 isAuthenticated: false,
                 authLoading: false,
                 dashboardLoading: false,

@@ -1,3 +1,7 @@
+var API_BASE = window.location.origin && window.location.origin !== 'null'
+    ? window.location.origin
+    : '';
+
 new Vue({
     el: '#app',
     data: function () {
@@ -344,7 +348,7 @@ new Vue({
                 return Promise.resolve();
             }
 
-            return fetch('http://localhost:3000/api/user/profile', {
+            return fetch(API_BASE + '/api/user/profile', {
                 method: 'GET',
                 headers: self.getUserAuthHeaders()
             })
@@ -395,7 +399,7 @@ new Vue({
 
             self.authLoading = true;
 
-            fetch('http://localhost:3000/api/login', {
+            fetch(API_BASE + '/api/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -486,7 +490,7 @@ new Vue({
 
             self.authLoading = true;
 
-            fetch('http://localhost:3000/api/register', {
+            fetch(API_BASE + '/api/register', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -555,7 +559,7 @@ new Vue({
 
             self.authLoading = true;
 
-            fetch('http://localhost:3000/api/reset-password', {
+            fetch(API_BASE + '/api/reset-password', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -609,7 +613,7 @@ new Vue({
 
             self.authLoading = true;
 
-            fetch('http://localhost:3000/api/admin/login', {
+            fetch(API_BASE + '/api/admin/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -663,7 +667,7 @@ new Vue({
             
             console.log('🔄 正在加载用户数据...');
 
-            fetch('http://localhost:3000/api/admin/users', {
+            fetch(API_BASE + '/api/admin/users', {
                 headers: self.getAdminAuthHeaders()
             })
                 .then(res => res.json())
@@ -728,7 +732,7 @@ new Vue({
                 return;
             }
 
-            fetch(`http://localhost:3000/api/admin/users/${self.editForm.id}`, {
+            fetch(API_BASE + `/api/admin/users/${self.editForm.id}`, {
                 method: 'PUT',
                 headers: self.getAdminAuthHeaders({
                     'Content-Type': 'application/json'
@@ -779,7 +783,7 @@ new Vue({
 
             console.log(`🗑️ 正在删除用户: ${username} (ID: ${userId})`);
 
-            fetch(`http://localhost:3000/api/admin/users/${userId}`, {
+            fetch(API_BASE + `/api/admin/users/${userId}`, {
                 method: 'DELETE',
                 headers: self.getAdminAuthHeaders()
             })
@@ -822,7 +826,7 @@ new Vue({
 
             console.log(`🔑 正在重置用户密码: ${username} (ID: ${userId})`);
 
-            fetch(`http://localhost:3000/api/admin/users/${userId}/reset-password`, {
+            fetch(API_BASE + `/api/admin/users/${userId}/reset-password`, {
                 method: 'POST',
                 headers: self.getAdminAuthHeaders({
                     'Content-Type': 'application/json'
@@ -1072,7 +1076,7 @@ new Vue({
                     formData.append('image', blob, 'query.jpg');
 
                     // 调用后端识别接口
-                    return fetch('http://localhost:3000/api/reid', {
+                    return fetch(API_BASE + '/api/reid', {
                         method: 'POST',
                         headers: self.getUserAuthHeaders(),
                         body: formData
@@ -1084,7 +1088,7 @@ new Vue({
                 .then(function (data) {
                     if (data.success) {
                         // 显示匹配图片
-                        self.matchedImage = 'http://localhost:3000' + data.match.imageUrl;
+                        self.matchedImage = API_BASE + data.match.imageUrl;
 
                         // 保存相似度与距离
                         self.matchedInfo = {
@@ -1504,7 +1508,7 @@ new Vue({
             handler: function (newSettings) {
                 var self = this;
                 if (this.isLoggedIn && !this.isAdmin) {
-                    fetch('http://localhost:3000/api/user/settings', {
+                    fetch(API_BASE + '/api/user/settings', {
                         method: 'PUT',
                         headers: self.getUserAuthHeaders({
                             'Content-Type': 'application/json'
