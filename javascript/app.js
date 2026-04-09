@@ -60,15 +60,21 @@ new Vue({
             registerForm: {
                 username: '',
                 email: '',
+                emailCode: '',
                 password: '',
                 confirmPassword: ''
             },
             showRegisterPassword: false,
             showConfirmPassword: false,
+            registerCodeLoading: false,
+            registerCodeCooldown: 0,
+            registerCodeTimer: null,
+            registerCodeMessage: '',
             registerSuccess: false,
             registerErrors: {
                 username: false,
                 email: false,
+                emailCode: false,
                 password: false,
                 confirmPassword: false
             },
@@ -77,11 +83,21 @@ new Vue({
 
             // 重置密码表单数据
             resetForm: {
-                email: ''
+                email: '',
+                emailCode: '',
+                newPassword: '',
+                confirmPassword: ''
             },
+            resetCodeLoading: false,
+            resetCodeCooldown: 0,
+            resetCodeTimer: null,
+            resetCodeMessage: '',
             resetSuccess: false,
             resetErrors: {
-                email: false
+                email: false,
+                emailCode: false,
+                newPassword: false,
+                confirmPassword: false
             },
 
             // 主应用状态
@@ -357,7 +373,7 @@ new Vue({
                 })
                 .then(function (data) {
                     if (!data.success || !data.user) {
-                        throw new Error(data.msg || '鑾峰彇鐢ㄦ埛淇℃伅澶辫触');
+                        throw new Error(data.msg || '获取用户信息失败');
                     }
 
                     self.currentUser = data.user.username;
@@ -368,7 +384,7 @@ new Vue({
                     self.settings = data.user.settings || self.settings;
                 })
                 .catch(function (error) {
-                    console.error('鑾峰彇鐢ㄦ埛淇℃伅澶辫触:', error);
+                    console.error('获取用户信息失败:', error);
                     self.logout();
                 });
         },
@@ -461,13 +477,179 @@ new Vue({
         },
 
         /**
+         * 验证邮箱格式
+         */
+        isValidEmailAddress: function (email) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((email || '').trim());
+        },
+
+        /**
+         * 清理验证码倒计时
+         */
+        clearCodeCooldown: function (scene) {
+            var timerKey = scene === 'register' ? 'registerCodeTimer' : 'resetCodeTimer';
+            var cooldownKey = scene === 'register' ? 'registerCodeCooldown' : 'resetCodeCooldown';
+
+            if (this[timerKey]) {
+                clearInterval(this[timerKey]);
+                this[timerKey] = null;
+            }
+
+            this[cooldownKey] = 0;
+        },
+
+        /**
+         * 启动验证码倒计时
+         */
+        startCodeCooldown: function (scene, seconds) {
+            var self = this;
+            var timerKey = scene === 'register' ? 'registerCodeTimer' : 'resetCodeTimer';
+            var cooldownKey = scene === 'register' ? 'registerCodeCooldown' : 'resetCodeCooldown';
+            var totalSeconds = Math.max(0, Number(seconds) || 0);
+
+            self.clearCodeCooldown(scene);
+            self[cooldownKey] = totalSeconds;
+
+            if (totalSeconds <= 0) {
+                return;
+            }
+
+            self[timerKey] = setInterval(function () {
+                if (self[cooldownKey] <= 1) {
+                    self.clearCodeCooldown(scene);
+                    return;
+                }
+
+                self[cooldownKey] -= 1;
+            }, 1000);
+        },
+
+        /**
+         * 发送注册验证码
+         */
+        sendRegisterCode: function () {
+            var self = this;
+            var email = self.registerForm.email.trim();
+
+            self.registerErrors.email = false;
+            self.registerCodeMessage = '';
+
+            if (!email) {
+                self.registerErrors.email = true;
+                alert('请先输入注册邮箱');
+                return;
+            }
+
+            if (!self.isValidEmailAddress(email)) {
+                self.registerErrors.email = true;
+                alert('请输入有效的电子邮箱');
+                return;
+            }
+
+            self.registerCodeLoading = true;
+
+            fetch(API_BASE + '/api/register/email-code/send', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email: email
+                })
+            })
+                .then(function (response) {
+                    return response.json();
+                })
+                .then(function (data) {
+                    if (data.success) {
+                        self.registerCodeMessage = data.msg || '验证码已发送，请查收邮箱';
+                        self.startCodeCooldown('register', data.retryAfterSec || 60);
+                    } else {
+                        if (data.retryAfterSec) {
+                            self.startCodeCooldown('register', data.retryAfterSec);
+                        }
+                        alert(data.msg || '验证码发送失败');
+                    }
+                })
+                .catch(function (error) {
+                    console.error('注册验证码发送失败:', error);
+                    alert('验证码发送失败，请检查网络连接后重试');
+                })
+                .finally(function () {
+                    self.registerCodeLoading = false;
+                });
+        },
+
+        /**
+         * 发送重置密码验证码
+         */
+        sendResetCode: function () {
+            var self = this;
+            var email = self.resetForm.email.trim();
+
+            self.resetErrors.email = false;
+            self.resetCodeMessage = '';
+
+            if (!email) {
+                self.resetErrors.email = true;
+                alert('请先输入注册邮箱');
+                return;
+            }
+
+            if (!self.isValidEmailAddress(email)) {
+                self.resetErrors.email = true;
+                alert('请输入有效的电子邮箱');
+                return;
+            }
+
+            self.resetCodeLoading = true;
+
+            fetch(API_BASE + '/api/reset-password/email-code/send', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email: email
+                })
+            })
+                .then(function (response) {
+                    return response.json();
+                })
+                .then(function (data) {
+                    if (data.success) {
+                        self.resetCodeMessage = data.msg || '验证码已发送，请查收邮箱';
+                        self.startCodeCooldown('reset', data.retryAfterSec || 60);
+                    } else {
+                        if (data.retryAfterSec) {
+                            self.startCodeCooldown('reset', data.retryAfterSec);
+                        }
+                        alert(data.msg || '验证码发送失败');
+                    }
+                })
+                .catch(function (error) {
+                    console.error('重置密码验证码发送失败:', error);
+                    alert('验证码发送失败，请检查网络连接后重试');
+                })
+                .finally(function () {
+                    self.resetCodeLoading = false;
+                });
+        },
+
+        /**
          * 用户注册
          */
         register: function () {
             var self = this;
 
             // 重置错误状态
-            self.registerErrors = { username: false, email: false, password: false, confirmPassword: false };
+            self.registerErrors = {
+                username: false,
+                email: false,
+                emailCode: false,
+                password: false,
+                confirmPassword: false
+            };
 
             // 表单验证
             if (!self.validateRegisterForm()) {
@@ -498,6 +680,7 @@ new Vue({
                 body: JSON.stringify({
                     username: self.registerForm.username.trim(),
                     email: self.registerForm.email.trim(),
+                    emailCode: self.registerForm.emailCode.trim(),
                     password: self.registerForm.password
                 })
             })
@@ -513,7 +696,7 @@ new Vue({
                             self.registerSuccess = false;
                             self.resetRegisterForm();
                             self.currentAuthForm = 'login';
-                            alert('注册成功！请登录您的账户。');
+                            alert('注册成功，邮箱已验证，请登录您的账户。');
                         }, 2000);
 
                         console.log('注册成功:', self.registerForm.username);
@@ -541,19 +724,14 @@ new Vue({
             var self = this;
 
             // 重置错误状态
-            self.resetErrors = { email: false };
+            self.resetErrors = {
+                email: false,
+                emailCode: false,
+                newPassword: false,
+                confirmPassword: false
+            };
 
-            if (!self.resetForm.email.trim()) {
-                self.resetErrors.email = true;
-                alert('请输入邮箱地址');
-                return;
-            }
-
-            // 简单的邮箱格式验证
-            var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(self.resetForm.email.trim())) {
-                self.resetErrors.email = true;
-                alert('请输入有效的邮箱地址');
+            if (!self.validateResetForm()) {
                 return;
             }
 
@@ -565,7 +743,9 @@ new Vue({
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    email: self.resetForm.email.trim()
+                    email: self.resetForm.email.trim(),
+                    emailCode: self.resetForm.emailCode.trim(),
+                    newPassword: self.resetForm.newPassword
                 })
             })
                 .then(function (response) {
@@ -573,23 +753,22 @@ new Vue({
                 })
                 .then(function (data) {
                     if (data.success) {
-                        // 模拟发送重置邮件
                         self.resetSuccess = true;
+                        self.resetCodeMessage = '';
 
-                        // 重置表单并返回登录页
                         setTimeout(function () {
-                            self.resetForm.email = '';
                             self.resetSuccess = false;
+                            self.resetResetForm();
                             self.currentAuthForm = 'login';
-                            alert('重置链接已发送到您的邮箱，请查收。');
-                        }, 3000);
+                            alert('密码已重置成功，请使用新密码登录。');
+                        }, 2000);
                     } else {
-                        alert(data.msg || '发送失败');
+                        alert(data.msg || '重置失败');
                     }
                 })
                 .catch(function (error) {
-                    console.error('发送失败:', error);
-                    alert('发送失败，请检查网络连接后重试');
+                    console.error('重置密码失败:', error);
+                    alert('重置失败，请检查网络连接后重试');
                 })
                 .finally(function () {
                     self.authLoading = false;
@@ -887,6 +1066,7 @@ new Vue({
                 // 重置所有状态
                 this.resetLoginForm();
                 this.resetRegisterForm();
+                this.resetResetForm();
                 this.resetImageData();
                 this.currentAuthForm = 'login';
                 this.activeTab = 'home';
@@ -902,6 +1082,7 @@ new Vue({
         validateRegisterForm: function () {
             var username = this.registerForm.username;
             var email = this.registerForm.email;
+            var emailCode = this.registerForm.emailCode;
             var password = this.registerForm.password;
             var confirmPassword = this.registerForm.confirmPassword;
             var isValid = true;
@@ -916,9 +1097,13 @@ new Vue({
             }
 
             // 邮箱验证
-            var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(email.trim())) {
+            if (!this.isValidEmailAddress(email)) {
                 this.registerErrors.email = true;
+                isValid = false;
+            }
+
+            if (!/^\d{6}$/.test(emailCode.trim())) {
+                this.registerErrors.emailCode = true;
                 isValid = false;
             }
 
@@ -934,6 +1119,42 @@ new Vue({
             // 确认密码验证
             if (password !== confirmPassword) {
                 this.registerErrors.confirmPassword = true;
+                isValid = false;
+            }
+
+            return isValid;
+        },
+
+        /**
+         * 验证重置密码表单
+         */
+        validateResetForm: function () {
+            var email = this.resetForm.email;
+            var emailCode = this.resetForm.emailCode;
+            var newPassword = this.resetForm.newPassword;
+            var confirmPassword = this.resetForm.confirmPassword;
+            var isValid = true;
+
+            if (!this.isValidEmailAddress(email)) {
+                this.resetErrors.email = true;
+                isValid = false;
+            }
+
+            if (!/^\d{6}$/.test(emailCode.trim())) {
+                this.resetErrors.emailCode = true;
+                isValid = false;
+            }
+
+            if (!newPassword || newPassword.length < 6) {
+                this.resetErrors.newPassword = true;
+                isValid = false;
+                if (newPassword && newPassword.length < 6) {
+                    alert('新密码至少需要6个字符');
+                }
+            }
+
+            if (newPassword !== confirmPassword) {
+                this.resetErrors.confirmPassword = true;
                 isValid = false;
             }
 
@@ -1191,12 +1412,14 @@ new Vue({
             this.registerForm = {
                 username: '',
                 email: '',
+                emailCode: '',
                 password: '',
                 confirmPassword: ''
             };
             this.registerErrors = {
                 username: false,
                 email: false,
+                emailCode: false,
                 password: false,
                 confirmPassword: false
             };
@@ -1204,6 +1427,30 @@ new Vue({
             this.showConfirmPassword = false;
             this.passwordStrength = '';
             this.passwordSuggestions = [];
+            this.registerCodeMessage = '';
+            this.registerSuccess = false;
+            this.clearCodeCooldown('register');
+        },
+
+        /**
+         * 重置忘记密码表单
+         */
+        resetResetForm: function () {
+            this.resetForm = {
+                email: '',
+                emailCode: '',
+                newPassword: '',
+                confirmPassword: ''
+            };
+            this.resetErrors = {
+                email: false,
+                emailCode: false,
+                newPassword: false,
+                confirmPassword: false
+            };
+            this.resetCodeMessage = '';
+            this.resetSuccess = false;
+            this.clearCodeCooldown('reset');
         },
 
         // ========== 管理员专用方法 ==========
@@ -1461,6 +1708,10 @@ new Vue({
             this.currentAuthForm = 'login';
             this.adminForm.secretKey = '';
         }
+    },
+    beforeDestroy: function () {
+        this.clearCodeCooldown('register');
+        this.clearCodeCooldown('reset');
     },
     mounted: function () {
         // 应用初始化

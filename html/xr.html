@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 
 <head>
@@ -167,6 +167,37 @@
                         </div>
 
                         <div class="form-group">
+                            <div class="verification-row">
+                                <div class="input-with-icon verification-input">
+                                    <i class="fas fa-shield-alt input-icon"></i>
+                                    <input type="text" v-model="registerForm.emailCode" placeholder="邮箱验证码"
+                                        maxlength="6" inputmode="numeric"
+                                        @input="registerForm.emailCode = registerForm.emailCode.replace(/\D/g, '').slice(0, 6)"
+                                        required>
+                                </div>
+                                <button type="button" class="auth-btn secondary verification-btn"
+                                    @click="sendRegisterCode"
+                                    :disabled="registerCodeLoading || registerCodeCooldown > 0 || authLoading">
+                                    <i v-if="registerCodeLoading" class="fas fa-spinner fa-spin"></i>
+                                    <i v-else class="fas fa-paper-plane"></i>
+                                    {{ registerCodeLoading ? '发送中...' : (registerCodeCooldown > 0 ? registerCodeCooldown + '秒后重试' : '发送验证码') }}
+                                </button>
+                            </div>
+                            <small class="verification-hint">
+                                <i class="fas fa-envelope-open-text"></i>
+                                验证码 10 分钟内有效，重新发送后旧验证码会失效
+                            </small>
+                            <div class="auth-error-message" v-if="registerErrors.emailCode">
+                                <i class="fas fa-exclamation-circle"></i>
+                                请输入 6 位邮箱验证码
+                            </div>
+                            <div class="auth-info-message" v-if="registerCodeMessage">
+                                <i class="fas fa-circle-info"></i>
+                                {{ registerCodeMessage }}
+                            </div>
+                        </div>
+
+                        <div class="form-group">
                             <div class="input-with-icon">
                                 <i class="fas fa-lock input-icon"></i>
                                 <input :type="showRegisterPassword ? 'text' : 'password'"
@@ -220,7 +251,7 @@
                             </div>
                         </div>
 
-                        <button type="submit" class="auth-btn primary" :disabled="authLoading">
+                        <button type="submit" class="auth-btn primary" :disabled="authLoading || registerCodeLoading">
                             <i v-if="authLoading" class="fas fa-spinner fa-spin"></i>
                             <i v-else class="fas fa-user-plus"></i>
                             {{ authLoading ? '注册中...' : '注册' }}
@@ -245,7 +276,7 @@
                             <i class="fas fa-key"></i>
                         </div>
                         <h2>重置密码</h2>
-                        <p>请输入您的电子邮箱以重置密码</p>
+                        <p>请输入邮箱并使用验证码设置新密码</p>
                     </div>
 
                     <form @submit.prevent="resetPassword">
@@ -260,15 +291,73 @@
                             </div>
                         </div>
 
-                        <button type="submit" class="auth-btn primary" :disabled="authLoading">
+                        <div class="form-group">
+                            <div class="verification-row">
+                                <div class="input-with-icon verification-input">
+                                    <i class="fas fa-shield-alt input-icon"></i>
+                                    <input type="text" v-model="resetForm.emailCode" placeholder="邮箱验证码"
+                                        maxlength="6" inputmode="numeric"
+                                        @input="resetForm.emailCode = resetForm.emailCode.replace(/\D/g, '').slice(0, 6)"
+                                        required>
+                                </div>
+                                <button type="button" class="auth-btn secondary verification-btn"
+                                    @click="sendResetCode"
+                                    :disabled="resetCodeLoading || resetCodeCooldown > 0 || authLoading">
+                                    <i v-if="resetCodeLoading" class="fas fa-spinner fa-spin"></i>
+                                    <i v-else class="fas fa-paper-plane"></i>
+                                    {{ resetCodeLoading ? '发送中...' : (resetCodeCooldown > 0 ? resetCodeCooldown + '秒后重试' : '发送验证码') }}
+                                </button>
+                            </div>
+                            <small class="verification-hint">
+                                <i class="fas fa-envelope-open-text"></i>
+                                验证码会发送到注册邮箱，10 分钟内有效
+                            </small>
+                            <div class="auth-error-message" v-if="resetErrors.emailCode">
+                                <i class="fas fa-exclamation-circle"></i>
+                                请输入 6 位邮箱验证码
+                            </div>
+                            <div class="auth-info-message" v-if="resetCodeMessage">
+                                <i class="fas fa-circle-info"></i>
+                                {{ resetCodeMessage }}
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="input-with-icon">
+                                <i class="fas fa-lock input-icon"></i>
+                                <input type="password" v-model="resetForm.newPassword" placeholder="新密码" required>
+                            </div>
+                            <small class="password-hint">
+                                <i class="fas fa-info-circle"></i>
+                                新密码至少 6 位字符
+                            </small>
+                            <div class="auth-error-message" v-if="resetErrors.newPassword">
+                                <i class="fas fa-exclamation-circle"></i>
+                                新密码不能少于 6 个字符
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="input-with-icon">
+                                <i class="fas fa-lock input-icon"></i>
+                                <input type="password" v-model="resetForm.confirmPassword" placeholder="确认新密码"
+                                    required>
+                            </div>
+                            <div class="auth-error-message" v-if="resetErrors.confirmPassword">
+                                <i class="fas fa-exclamation-circle"></i>
+                                两次输入的新密码不一致
+                            </div>
+                        </div>
+
+                        <button type="submit" class="auth-btn primary" :disabled="authLoading || resetCodeLoading">
                             <i v-if="authLoading" class="fas fa-spinner fa-spin"></i>
-                            <i v-else class="fas fa-paper-plane"></i>
-                            {{ authLoading ? '发送中...' : '发送重置链接' }}
+                            <i v-else class="fas fa-key"></i>
+                            {{ authLoading ? '重置中...' : '重置密码' }}
                         </button>
 
-                        <div class="auth-info-message" v-if="resetSuccess">
+                        <div class="auth-success-message" v-if="resetSuccess">
                             <i class="fas fa-check-circle"></i>
-                            重置链接已发送到您的邮箱，请查收。
+                            密码已重置成功，请返回登录。
                         </div>
                     </form>
                 </div>
@@ -777,8 +866,8 @@
                     </div>
                     <div class="footer-section">
                         <h3><i class="fas fa-address-card"></i> 联系方式</h3>
-                        <p><i class="fas fa-envelope"></i> 邮箱: contact@reid-system.com</p>
-                        <p><i class="fas fa-phone"></i> 电话: +86 123-4567-8900</p>
+                        <p><i class="fas fa-envelope"></i> 邮箱: jayli1006@163.com</p>
+                        <p><i class="fas fa-phone"></i> 电话: +86 17590525079</p>
                     </div>
                 </div>
                 <div class="footer-bottom">

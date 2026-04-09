@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
+const nodemailer = require('nodemailer');
 const { Pool } = require('pg');
 const fs = require('fs');
 const fsp = fs.promises;
@@ -19,9 +20,27 @@ const AUTH_TOKEN_SECRET = process.env.AUTH_TOKEN_SECRET || 'change-this-auth-tok
 const ADMIN_SECRET_KEY = process.env.ADMIN_SECRET_KEY || 'admin123456';
 const USER_TOKEN_TTL_MS = Number(process.env.USER_TOKEN_TTL_MS || 7 * 24 * 60 * 60 * 1000);
 const ADMIN_TOKEN_TTL_MS = Number(process.env.ADMIN_TOKEN_TTL_MS || 8 * 60 * 60 * 1000);
+const EMAIL_CODE_SECRET = process.env.EMAIL_CODE_SECRET || AUTH_TOKEN_SECRET;
+const EMAIL_CODE_TTL_MINUTES = Number(process.env.EMAIL_CODE_TTL_MINUTES || 10);
+const EMAIL_CODE_RESEND_SECONDS = Number(process.env.EMAIL_CODE_RESEND_SECONDS || 60);
+const EMAIL_CODE_MAX_ATTEMPTS = Number(process.env.EMAIL_CODE_MAX_ATTEMPTS || 5);
+const EMAIL_CODE_MAX_PER_HOUR = Number(process.env.EMAIL_CODE_MAX_PER_HOUR || 5);
+const EMAIL_CODE_LENGTH = 6;
+const EMAIL_SCENES = Object.freeze({
+    REGISTER: 'register',
+    RESET_PASSWORD: 'reset_password'
+});
 const PASSWORD_PREFIX = 'scrypt';
 const DEFAULT_USER_SETTINGS = Object.freeze({ notifications: true, autoSave: true });
 const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const SMTP_HOST = process.env.SMTP_HOST || '';
+const SMTP_PORT = Number(process.env.SMTP_PORT || 465);
+const SMTP_SECURE = process.env.SMTP_SECURE
+    ? process.env.SMTP_SECURE === 'true'
+    : SMTP_PORT === 465;
+const SMTP_USER = process.env.SMTP_USER || '';
+const SMTP_PASS = process.env.SMTP_PASS || '';
+const SMTP_FROM = process.env.SMTP_FROM || '';
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 const CROPS_DIR = path.join(__dirname, 'dataset', 'crops');
 const OUTPUT_DIR = path.join(__dirname, 'dataset', 'output');
@@ -33,6 +52,7 @@ const XR_HTML_FILE = path.join(HTML_DIR, 'xr.html');
 const ADMIN_HTML_FILE = path.join(HTML_DIR, 'admin.html');
 const CLIENT_APP_FILE = path.join(__dirname, 'app.js');
 const CLIENT_ADMIN_FILE = path.join(__dirname, 'admin.js');
+let emailTransporter = null;
 
 if (!process.env.AUTH_TOKEN_SECRET) {
     console.warn('[auth] AUTH_TOKEN_SECRET 未配置，当前正在使用默认值。');
@@ -40,6 +60,14 @@ if (!process.env.AUTH_TOKEN_SECRET) {
 
 if (!process.env.ADMIN_SECRET_KEY) {
     console.warn('[auth] ADMIN_SECRET_KEY 未配置，当前正在使用默认值。');
+}
+
+if (!process.env.EMAIL_CODE_SECRET) {
+    console.warn('[auth] EMAIL_CODE_SECRET 未配置，当前将复用 AUTH_TOKEN_SECRET。');
+}
+
+if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS || !SMTP_FROM) {
+    console.warn('[mail] SMTP 未完整配置，邮箱验证码功能当前不可用。');
 }
 
 app.disable('x-powered-by');
@@ -138,6 +166,113 @@ function normalizeEmail(value) {
 
 function isValidEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function normalizeVerificationCode(value) {
+    return trimString(value).replace(/\D/g, '').slice(0, EMAIL_CODE_LENGTH);
+}
+
+function getClientIp(req) {
+    const forwardedFor = req.headers['x-forwarded-for'];
+    if (typeof forwardedFor === 'string' && forwardedFor.trim()) {
+        return forwardedFor.split(',')[0].trim();
+    }
+
+    return req.socket && req.socket.remoteAddress
+        ? req.socket.remoteAddress
+        : '';
+}
+
+function assertMailerConfigured() {
+    if (!SMTP_HOST || !SMTP_PORT || !SMTP_USER || !SMTP_PASS || !SMTP_FROM) {
+        throw createHttpError(
+            500,
+            '邮件服务未配置，请先在 javascript/.env 中设置 SMTP_HOST、SMTP_PORT、SMTP_USER、SMTP_PASS 和 SMTP_FROM'
+        );
+    }
+}
+
+function getEmailTransporter() {
+    assertMailerConfigured();
+
+    if (!emailTransporter) {
+        emailTransporter = nodemailer.createTransport({
+            host: SMTP_HOST,
+            port: SMTP_PORT,
+            secure: SMTP_SECURE,
+            auth: {
+                user: SMTP_USER,
+                pass: SMTP_PASS
+            }
+        });
+    }
+
+    return emailTransporter;
+}
+
+function getEmailSceneContent(scene) {
+    if (scene === EMAIL_SCENES.REGISTER) {
+        return {
+            subject: '注册验证码',
+            title: '邮箱注册验证码',
+            actionText: '完成注册'
+        };
+    }
+
+    return {
+        subject: '重置密码验证码',
+        title: '密码重置验证码',
+        actionText: '重置密码'
+    };
+}
+
+function generateEmailVerificationCode() {
+    return String(Math.floor(Math.random() * 900000) + 100000);
+}
+
+function hashEmailVerificationCode(scene, email, code) {
+    return crypto
+        .createHmac('sha256', EMAIL_CODE_SECRET)
+        .update([scene, normalizeEmail(email), normalizeVerificationCode(code)].join(':'))
+        .digest('hex');
+}
+
+async function sendEmailVerificationCode(options) {
+    const { email, scene, code } = options;
+    const transporter = getEmailTransporter();
+    const sceneContent = getEmailSceneContent(scene);
+
+    try {
+        await transporter.sendMail({
+            from: SMTP_FROM,
+            to: email,
+            subject: sceneContent.subject,
+            text: [
+                `${sceneContent.title}`,
+                '',
+                `验证码：${code}`,
+                `有效期：${EMAIL_CODE_TTL_MINUTES} 分钟`,
+                `用途：用于${sceneContent.actionText}`,
+                '',
+                '如果不是您本人操作，请忽略此邮件。'
+            ].join('\n'),
+            html: `
+                <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">
+                    <h2 style="margin-bottom: 12px;">${sceneContent.title}</h2>
+                    <p>您好，您本次用于${sceneContent.actionText}的验证码如下：</p>
+                    <div style="margin: 20px 0; font-size: 28px; font-weight: 700; letter-spacing: 6px; color: #2563eb;">
+                        ${code}
+                    </div>
+                    <p>验证码在 <strong>${EMAIL_CODE_TTL_MINUTES} 分钟</strong> 内有效，重新发送后旧验证码会自动失效。</p>
+                    <p style="color: #6b7280;">如果不是您本人操作，请忽略此邮件。</p>
+                </div>
+            `
+        });
+    } catch (err) {
+        throw createHttpError(500, '验证码发送失败，请检查 SMTP 配置是否正确', {
+            detail: err.message
+        });
+    }
 }
 
 function parsePositiveInteger(value) {
@@ -322,6 +457,172 @@ async function withClient(callback) {
     }
 }
 
+async function createPendingEmailCode(client, options) {
+    const { email, scene, sendIp, userAgent } = options;
+    const latestResult = await client.query(
+        `SELECT id, created_at
+         FROM email_verification_codes
+         WHERE email = $1 AND scene = $2
+         ORDER BY created_at DESC, id DESC
+         LIMIT 1
+         FOR UPDATE`,
+        [email, scene]
+    );
+    const latest = firstNormalizedRow(latestResult);
+
+    if (latest && latest.created_at) {
+        const elapsedMs = Date.now() - new Date(latest.created_at).getTime();
+        if (elapsedMs < EMAIL_CODE_RESEND_SECONDS * 1000) {
+            throw createHttpError(429, '发送过于频繁，请稍后再试', {
+                retryAfterSec: Math.max(1, Math.ceil((EMAIL_CODE_RESEND_SECONDS * 1000 - elapsedMs) / 1000))
+            });
+        }
+    }
+
+    const emailCountResult = await client.query(
+        `SELECT COUNT(*) AS count
+         FROM email_verification_codes
+         WHERE email = $1
+           AND scene = $2
+           AND created_at >= NOW() - INTERVAL '1 hour'`,
+        [email, scene]
+    );
+    const emailCount = Number((firstNormalizedRow(emailCountResult) || {}).count || 0);
+    if (emailCount >= EMAIL_CODE_MAX_PER_HOUR) {
+        throw createHttpError(429, '该邮箱发送次数过多，请 1 小时后再试', {
+            retryAfterSec: 3600
+        });
+    }
+
+    if (sendIp) {
+        const ipCountResult = await client.query(
+            `SELECT COUNT(*) AS count
+             FROM email_verification_codes
+             WHERE send_ip = $1
+               AND scene = $2
+               AND created_at >= NOW() - INTERVAL '1 hour'`,
+            [sendIp, scene]
+        );
+        const ipCount = Number((firstNormalizedRow(ipCountResult) || {}).count || 0);
+        if (ipCount >= EMAIL_CODE_MAX_PER_HOUR) {
+            throw createHttpError(429, '当前网络发送次数过多，请 1 小时后再试', {
+                retryAfterSec: 3600
+            });
+        }
+    }
+
+    await client.query(
+        `UPDATE email_verification_codes
+         SET status = 'invalidated', invalidated_at = NOW()
+         WHERE email = $1 AND scene = $2 AND status = 'pending'`,
+        [email, scene]
+    );
+
+    const code = generateEmailVerificationCode();
+    const expiresAt = new Date(Date.now() + EMAIL_CODE_TTL_MINUTES * 60 * 1000);
+    const insertResult = await client.query(
+        `INSERT INTO email_verification_codes (
+            email,
+            scene,
+            code_hash,
+            status,
+            attempt_count,
+            max_attempts,
+            expires_at,
+            send_ip,
+            user_agent
+        )
+        VALUES ($1, $2, $3, 'pending', 0, $4, $5, $6, $7)
+        RETURNING id, expires_at`,
+        [
+            email,
+            scene,
+            hashEmailVerificationCode(scene, email, code),
+            EMAIL_CODE_MAX_ATTEMPTS,
+            expiresAt,
+            sendIp || null,
+            userAgent || null
+        ]
+    );
+    const record = firstNormalizedRow(insertResult);
+
+    return {
+        id: record.id,
+        code,
+        expiresAt: record.expires_at
+    };
+}
+
+async function consumePendingEmailCode(client, options) {
+    const { email, scene, code, verifyIp } = options;
+    const codeResult = await client.query(
+        `SELECT id, code_hash, attempt_count, max_attempts, expires_at
+         FROM email_verification_codes
+         WHERE email = $1 AND scene = $2 AND status = 'pending'
+         ORDER BY created_at DESC, id DESC
+         LIMIT 1
+         FOR UPDATE`,
+        [email, scene]
+    );
+    const record = firstNormalizedRow(codeResult);
+
+    if (!record) {
+        throw createHttpError(400, '请先获取验证码');
+    }
+
+    const expiresAt = record.expires_at ? new Date(record.expires_at).getTime() : 0;
+    if (expiresAt && expiresAt < Date.now()) {
+        await client.query(
+            `UPDATE email_verification_codes
+             SET status = 'expired', invalidated_at = NOW()
+             WHERE id = $1`,
+            [record.id]
+        );
+        throw createHttpError(400, '验证码已过期，请重新获取');
+    }
+
+    const currentAttempts = Number(record.attempt_count || 0);
+    const maxAttempts = Number(record.max_attempts || EMAIL_CODE_MAX_ATTEMPTS);
+    if (currentAttempts >= maxAttempts) {
+        await client.query(
+            `UPDATE email_verification_codes
+             SET status = 'locked', invalidated_at = NOW()
+             WHERE id = $1`,
+            [record.id]
+        );
+        throw createHttpError(400, '验证码已失效，请重新获取');
+    }
+
+    const expectedHash = Buffer.from(record.code_hash, 'hex');
+    const actualHash = Buffer.from(hashEmailVerificationCode(scene, email, code), 'hex');
+    const matched = expectedHash.length === actualHash.length
+        && crypto.timingSafeEqual(expectedHash, actualHash);
+
+    if (!matched) {
+        const nextAttempts = currentAttempts + 1;
+        const nextStatus = nextAttempts >= maxAttempts ? 'locked' : 'pending';
+        await client.query(
+            `UPDATE email_verification_codes
+             SET attempt_count = $1,
+                 status = $2,
+                 invalidated_at = CASE WHEN $2 = 'pending' THEN invalidated_at ELSE NOW() END
+             WHERE id = $3`,
+            [nextAttempts, nextStatus, record.id]
+        );
+        throw createHttpError(
+            400,
+            nextStatus === 'locked' ? '验证码错误次数过多，请重新获取' : '验证码错误'
+        );
+    }
+
+    await client.query(
+        `UPDATE email_verification_codes
+         SET status = 'used', consumed_at = NOW(), verify_ip = $2
+         WHERE id = $1`,
+        [record.id, verifyIp || null]
+    );
+}
+
 async function ensureDirectory(dirPath) {
     await fsp.mkdir(dirPath, { recursive: true });
 }
@@ -428,12 +729,23 @@ async function initialize() {
                 username VARCHAR(100) NOT NULL,
                 email VARCHAR(255) UNIQUE NOT NULL,
                 password VARCHAR(255) NOT NULL,
+                email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+                email_verified_at TIMESTAMP,
                 usage_count INTEGER DEFAULT 0,
                 last_used TIMESTAMP,
                 registration_date TIMESTAMP DEFAULT NOW(),
                 settings JSONB DEFAULT '{"notifications": true, "autoSave": true}'::jsonb,
                 created_at TIMESTAMP DEFAULT NOW()
             )
+        `);
+
+        await client.query(`
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE
+        `);
+        await client.query(`
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMP
         `);
 
         await client.query(`
@@ -446,9 +758,36 @@ async function initialize() {
             )
         `);
 
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS email_verification_codes (
+                id BIGSERIAL PRIMARY KEY,
+                email VARCHAR(255) NOT NULL,
+                scene VARCHAR(32) NOT NULL,
+                code_hash CHAR(64) NOT NULL,
+                status VARCHAR(16) NOT NULL DEFAULT 'pending',
+                attempt_count INTEGER NOT NULL DEFAULT 0,
+                max_attempts INTEGER NOT NULL DEFAULT 5,
+                expires_at TIMESTAMP NOT NULL,
+                consumed_at TIMESTAMP,
+                invalidated_at TIMESTAMP,
+                send_ip VARCHAR(64),
+                verify_ip VARCHAR(64),
+                user_agent TEXT,
+                created_at TIMESTAMP NOT NULL DEFAULT NOW()
+            )
+        `);
+
         await client.query('CREATE INDEX IF NOT EXISTS idx_users_username ON users (username)');
         await client.query('CREATE INDEX IF NOT EXISTS idx_users_last_used ON users (last_used)');
         await client.query('CREATE INDEX IF NOT EXISTS idx_user_images_user_email ON user_images (user_email)');
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_email_codes_lookup
+            ON email_verification_codes (email, scene, status, created_at DESC)
+        `);
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_email_codes_send_ip
+            ON email_verification_codes (send_ip, scene, created_at DESC)
+        `);
     });
 
     console.log('[init] 数据库与目录初始化完成');
@@ -458,8 +797,10 @@ app.post('/api/register', asyncHandler(async (req, res) => {
     const username = trimString(req.body.username);
     const email = normalizeEmail(req.body.email);
     const password = typeof req.body.password === 'string' ? req.body.password : '';
+    const emailCode = normalizeVerificationCode(req.body.emailCode);
+    const verifyIp = getClientIp(req);
 
-    if (!username || !email || !password) {
+    if (!username || !email || !password || !emailCode) {
         throw createHttpError(400, '请填写所有必填字段');
     }
 
@@ -475,21 +816,48 @@ app.post('/api/register', asyncHandler(async (req, res) => {
         throw createHttpError(400, '请输入有效的邮箱地址');
     }
 
+    if (emailCode.length !== EMAIL_CODE_LENGTH) {
+        throw createHttpError(400, '请输入 6 位邮箱验证码');
+    }
+
     const hashedPassword = await hashPassword(password);
     const user = await withClient(async (client) => {
-        const existing = await client.query('SELECT 1 FROM users WHERE email = $1', [email]);
-        if (existing.rowCount > 0) {
-            throw createHttpError(400, '邮箱已注册，请使用其他邮箱');
+        await client.query('BEGIN');
+        try {
+            const existing = await client.query('SELECT 1 FROM users WHERE email = $1', [email]);
+            if (existing.rowCount > 0) {
+                throw createHttpError(400, '邮箱已注册，请使用其他邮箱');
+            }
+
+            await consumePendingEmailCode(client, {
+                email,
+                scene: EMAIL_SCENES.REGISTER,
+                code: emailCode,
+                verifyIp
+            });
+
+            const result = await client.query(
+                `INSERT INTO users (
+                    username,
+                    email,
+                    password,
+                    email_verified,
+                    email_verified_at,
+                    usage_count,
+                    last_used,
+                    registration_date
+                )
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                 RETURNING id, username, email, registration_date`,
+                [username, email, hashedPassword, true, new Date(), 0, null, new Date()]
+            );
+
+            await client.query('COMMIT');
+            return firstNormalizedRow(result);
+        } catch (err) {
+            await client.query('ROLLBACK');
+            throw err;
         }
-
-        const result = await client.query(
-            `INSERT INTO users (username, email, password, usage_count, last_used, registration_date)
-             VALUES ($1, $2, $3, $4, $5, $6)
-             RETURNING id, username, email, registration_date`,
-            [username, email, hashedPassword, 0, null, new Date()]
-        );
-
-        return firstNormalizedRow(result);
     });
 
     res.json({
@@ -501,6 +869,73 @@ app.post('/api/register', asyncHandler(async (req, res) => {
             email: user.email,
             registrationDate: user.registration_date
         }
+    });
+}));
+
+app.post('/api/register/email-code/send', asyncHandler(async (req, res) => {
+    const email = normalizeEmail(req.body.email);
+    const sendIp = getClientIp(req);
+    const userAgent = trimString(req.headers['user-agent']);
+
+    if (!email) {
+        throw createHttpError(400, '请输入邮箱地址');
+    }
+
+    if (!isValidEmail(email)) {
+        throw createHttpError(400, '请输入有效的邮箱地址');
+    }
+
+    assertMailerConfigured();
+
+    const existingResult = await pool.query('SELECT 1 FROM users WHERE email = $1', [email]);
+    if (existingResult.rowCount > 0) {
+        res.json({
+            success: true,
+            msg: '如果该邮箱尚未注册，验证码已发送，请查收邮箱',
+            retryAfterSec: EMAIL_CODE_RESEND_SECONDS,
+            expireInSec: EMAIL_CODE_TTL_MINUTES * 60
+        });
+        return;
+    }
+
+    const issuedCode = await withClient(async (client) => {
+        await client.query('BEGIN');
+        try {
+            const created = await createPendingEmailCode(client, {
+                email,
+                scene: EMAIL_SCENES.REGISTER,
+                sendIp,
+                userAgent
+            });
+            await client.query('COMMIT');
+            return created;
+        } catch (err) {
+            await client.query('ROLLBACK');
+            throw err;
+        }
+    });
+
+    try {
+        await sendEmailVerificationCode({
+            email,
+            scene: EMAIL_SCENES.REGISTER,
+            code: issuedCode.code
+        });
+    } catch (err) {
+        await pool.query(
+            `UPDATE email_verification_codes
+             SET status = 'invalidated', invalidated_at = NOW()
+             WHERE id = $1 AND status = 'pending'`,
+            [issuedCode.id]
+        );
+        throw err;
+    }
+
+    res.json({
+        success: true,
+        msg: '验证码已发送，请查收邮箱',
+        retryAfterSec: EMAIL_CODE_RESEND_SECONDS,
+        expireInSec: EMAIL_CODE_TTL_MINUTES * 60
     });
 }));
 
@@ -616,6 +1051,69 @@ app.get('/api/users/by-username/:username', requireRole('admin'), asyncHandler(a
 
 app.post('/api/reset-password', asyncHandler(async (req, res) => {
     const email = normalizeEmail(req.body.email);
+    const emailCode = normalizeVerificationCode(req.body.emailCode);
+    const newPassword = typeof req.body.newPassword === 'string' ? req.body.newPassword : '';
+    const verifyIp = getClientIp(req);
+
+    if (!email || !emailCode || !newPassword) {
+        throw createHttpError(400, '请填写所有必填字段');
+    }
+
+    if (!isValidEmail(email)) {
+        throw createHttpError(400, '请输入有效的邮箱地址');
+    }
+
+    if (emailCode.length !== EMAIL_CODE_LENGTH) {
+        throw createHttpError(400, '请输入 6 位邮箱验证码');
+    }
+
+    if (newPassword.length < 6) {
+        throw createHttpError(400, '新密码至少需要 6 个字符');
+    }
+
+    const hashedPassword = await hashPassword(newPassword);
+
+    await withClient(async (client) => {
+        await client.query('BEGIN');
+        try {
+            const userResult = await client.query(
+                'SELECT id FROM users WHERE email = $1 ORDER BY created_at DESC, id DESC LIMIT 1 FOR UPDATE',
+                [email]
+            );
+
+            if (userResult.rowCount === 0) {
+                throw createHttpError(400, '验证码无效或邮箱不存在');
+            }
+
+            await consumePendingEmailCode(client, {
+                email,
+                scene: EMAIL_SCENES.RESET_PASSWORD,
+                code: emailCode,
+                verifyIp
+            });
+
+            await client.query(
+                'UPDATE users SET password = $1 WHERE email = $2',
+                [hashedPassword, email]
+            );
+
+            await client.query('COMMIT');
+        } catch (err) {
+            await client.query('ROLLBACK');
+            throw err;
+        }
+    });
+
+    res.json({
+        success: true,
+        msg: '密码重置成功，请使用新密码登录'
+    });
+}));
+
+app.post('/api/reset-password/email-code/send', asyncHandler(async (req, res) => {
+    const email = normalizeEmail(req.body.email);
+    const sendIp = getClientIp(req);
+    const userAgent = trimString(req.headers['user-agent']);
 
     if (!email) {
         throw createHttpError(400, '请输入邮箱地址');
@@ -625,18 +1123,61 @@ app.post('/api/reset-password', asyncHandler(async (req, res) => {
         throw createHttpError(400, '请输入有效的邮箱地址');
     }
 
-    const result = await pool.query('SELECT id, username FROM users WHERE email = $1', [email]);
+    assertMailerConfigured();
 
-    if (result.rowCount === 0) {
-        throw createHttpError(404, '该邮箱未注册');
+    const userResult = await pool.query(
+        'SELECT id FROM users WHERE email = $1 ORDER BY created_at DESC, id DESC LIMIT 1',
+        [email]
+    );
+
+    if (userResult.rowCount === 0) {
+        res.json({
+            success: true,
+            msg: '如果该邮箱已注册，验证码已发送，请查收邮箱',
+            retryAfterSec: EMAIL_CODE_RESEND_SECONDS,
+            expireInSec: EMAIL_CODE_TTL_MINUTES * 60
+        });
+        return;
     }
 
-    const user = firstNormalizedRow(result);
-    console.log(`[auth] 已模拟发送密码重置链接: ${email} (${user.username})`);
+    const issuedCode = await withClient(async (client) => {
+        await client.query('BEGIN');
+        try {
+            const created = await createPendingEmailCode(client, {
+                email,
+                scene: EMAIL_SCENES.RESET_PASSWORD,
+                sendIp,
+                userAgent
+            });
+            await client.query('COMMIT');
+            return created;
+        } catch (err) {
+            await client.query('ROLLBACK');
+            throw err;
+        }
+    });
+
+    try {
+        await sendEmailVerificationCode({
+            email,
+            scene: EMAIL_SCENES.RESET_PASSWORD,
+            code: issuedCode.code
+        });
+    } catch (err) {
+        await pool.query(
+            `UPDATE email_verification_codes
+             SET status = 'invalidated', invalidated_at = NOW()
+             WHERE id = $1 AND status = 'pending'`,
+            [issuedCode.id]
+        );
+        throw err;
+    }
 
     res.json({
         success: true,
-        msg: '重置链接已发送到您的邮箱，请查收'
+        msg: '验证码已发送，请查收邮箱',
+        retryAfterSec: EMAIL_CODE_RESEND_SECONDS,
+        expireInSec: EMAIL_CODE_TTL_MINUTES * 60
     });
 }));
 
@@ -1005,6 +1546,11 @@ app.use((err, req, res, next) => {
         success: false,
         msg: err.message || '服务器内部错误'
     };
+
+    if (err.retryAfterSec) {
+        response.retryAfterSec = err.retryAfterSec;
+        res.setHeader('Retry-After', String(err.retryAfterSec));
+    }
 
     if (err.detail) {
         response.detail = err.detail;
