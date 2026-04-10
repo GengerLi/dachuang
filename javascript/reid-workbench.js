@@ -156,7 +156,7 @@
                 timestamp: '--:--'
             }),
             resultVideo: deepClone(reidMock.resultVideo || {
-                title: '结果视频占位区',
+                title: '结果视频区',
                 clipName: '等待生成结果片段',
                 description: '完成任务后承接视频回放模块。',
                 duration: '--:--'
@@ -268,8 +268,8 @@
             time: result.captureTime || new Date().toISOString(),
             status: saved ? 'verified' : 'review',
             saved: saved,
-            operator: saved ? '预览模式自动写入' : '仅本次展示',
-            note: result.note || (saved ? '重识别结果已自动保存到 mock 记录。' : '自动保存关闭，仅保留本次展示结果。'),
+            operator: saved ? '系统自动写入' : '本次任务',
+            note: result.note || (saved ? '重识别结果已自动保存至历史记录。' : '自动保存关闭，结果仅在当前页面展示。'),
             paramsSummary: deepClone(result.paramsSummary || {}),
             narrative: result.narrative || '',
             trajectory: deepClone(result.trajectory || []),

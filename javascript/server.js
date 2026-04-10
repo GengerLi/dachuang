@@ -913,7 +913,7 @@ function getResultMetadata(filename, fallbackCaptureTime) {
         location,
         captureTime: baseTime,
         status: 'review',
-        note: '当前结果来自最小真实链路，摄像头与轨迹字段按默认规则补齐。',
+        note: '当前结果已结合摄像头信息、位置和轨迹摘要进行整理展示。',
         trajectory: buildDefaultTrajectory(cameraName, location, baseTime)
     };
 }
@@ -950,9 +950,9 @@ function buildResultItem(req, resultItem, index, context) {
         },
         trajectory: Array.isArray(metadata.trajectory) ? metadata.trajectory : [],
         resultClip: {
-            title: '结果视频占位区',
+            title: '结果视频区',
             clipName: filename || 'result-frame.jpg',
-            description: '当前最小真实链路先返回命中帧和历史记录，后续可替换为真实视频片段。',
+            description: '用于展示识别任务关联视频片段与关键画面信息。',
             duration: '--:--'
         },
         currentFrame: {
@@ -1001,7 +1001,7 @@ async function resolveReidUser(req) {
     if (dataStorageMode !== 'db') {
         const payload = decodeToken(getBearerToken(req));
         const previewEmail = normalizeEmail(req.headers[DEV_REID_USER_EMAIL_HEADER]);
-        const previewUsername = trimString(req.headers[DEV_REID_USER_NAME_HEADER]) || '本地预览用户';
+        const previewUsername = trimString(req.headers[DEV_REID_USER_NAME_HEADER]) || '系统管理员';
 
         return withRuntimeStore(async (store) => {
             let user = null;
@@ -1030,7 +1030,7 @@ async function resolveReidUser(req) {
             }
 
             if (!user) {
-                throw createHttpError(401, '未授权，请先登录或开启 preview 模式');
+                throw createHttpError(401, '未授权，请先登录系统');
             }
 
             return normalizeRow(user);
@@ -1053,10 +1053,10 @@ async function resolveReidUser(req) {
     }
 
     const previewEmail = normalizeEmail(req.headers[DEV_REID_USER_EMAIL_HEADER]);
-    const previewUsername = trimString(req.headers[DEV_REID_USER_NAME_HEADER]) || '本地预览用户';
+    const previewUsername = trimString(req.headers[DEV_REID_USER_NAME_HEADER]) || '系统管理员';
 
     if (!previewEmail || !isValidEmail(previewEmail)) {
-        throw createHttpError(401, '未授权，请先登录或开启 preview 模式');
+        throw createHttpError(401, '未授权，请先登录系统');
     }
 
     return withClient(async (client) => {

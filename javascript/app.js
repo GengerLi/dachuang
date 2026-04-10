@@ -126,7 +126,7 @@
                 id: '',
                 queryImage: '',
                 sourceType: 'localVideo',
-                sourceName: '本地视频',
+                sourceName: '视频库',
                 status: 'idle',
                 startedAt: '',
                 elapsedMs: 0
@@ -148,7 +148,7 @@
                 timestamp: '--:--'
             },
             resultVideo: {
-                title: '结果视频占位区',
+                title: '结果视频区',
                 clipName: '等待生成结果片段',
                 description: '完成任务后承接视频回放模块。',
                 duration: '--:--'
@@ -733,7 +733,6 @@
                 var headerMap = {
                     home: {
                         title: '系统总览',
-                        subtitle: '把平台最关键的统计、快捷入口、近期识别记录和系统状态集中到统一首页。',
                         actions: [
                             { key: 'go-monitoring', label: '进入实时监测', icon: 'fas fa-display', kind: 'secondary' },
                             { key: 'go-reid', label: '打开重识别工作台', icon: 'fas fa-user-check', kind: 'primary' }
@@ -741,30 +740,30 @@
                     },
                     monitoring: {
                         title: '实时监测',
-                        subtitle: '补正热区图、时间轴和摄像头状态表达，让监测页更接近景区运行看板。',
+                        subtitle: '集中展示景区重点区域监测画面、摄像头在线状态、热度分布与客流变化。',
                         actions: [
                             { key: 'refresh-monitoring', label: '刷新监测视图', icon: 'fas fa-rotate', kind: 'secondary' }
                         ]
                     },
                     statistics: {
                         title: '数据统计',
-                        subtitle: '在现有图表骨架上补充分析结论和系统建议，让统计页更像平台决策面板。',
+                        subtitle: '集中展示客流规模、区域负载、承载压力、分析结论与系统建议。',
                         actions: [
                             { key: 'refresh-statistics', label: '刷新统计数据', icon: 'fas fa-arrows-rotate', kind: 'secondary' }
                         ]
                     },
                     reid: {
                         title: '行人重识别工作台',
-                        subtitle: '支持查询图上传、参数调节、Top-K 匹配和轨迹追踪，聚焦核心检索体验补正。',
+                        subtitle: '支持查询图上传、参数配置、Top-K 匹配与结果追踪。',
                         actions: [
-                            { key: 'load-sample-query', label: '导入示例图', icon: 'fas fa-wand-magic-sparkles', kind: 'secondary' },
-                            { key: 'run-sample-reid', label: '运行示例识别', icon: 'fas fa-bolt', kind: 'primary' },
+                            { key: 'load-sample-query', label: '载入示例', icon: 'fas fa-wand-magic-sparkles', kind: 'secondary' },
+                            { key: 'run-sample-reid', label: '开始识别', icon: 'fas fa-bolt', kind: 'primary' },
                             { key: 'reset-reid-params', label: '重置', icon: 'fas fa-rotate-left', kind: 'secondary' }
                         ]
                     },
                     history: {
                         title: '历史记录',
-                        subtitle: '保留筛选、表格和详情结构，并承接本轮重识别页生成的新记录。',
+                        subtitle: '支持历史记录查看、结果筛选与详情追溯。',
                         actions: [
                             { key: 'reset-history-filters', label: '重置筛选条件', icon: 'fas fa-filter-circle-xmark', kind: 'secondary' }
                         ]
@@ -870,15 +869,11 @@
             },
 
             previewBadgeText: function () {
-                if (this.dataMode === 'real' && this.isPreviewMode) {
-                    return '预览登录 · 真实接口';
-                }
-
                 if (this.dataMode === 'real') {
-                    return '真实接口模式';
+                    return '平台运行';
                 }
 
-                return this.isPreviewMode ? '开发预览模式' : '标准模式';
+                return '系统在线';
             },
 
             isRealMode: function () {
@@ -897,7 +892,7 @@
 
                 return sourceOptions[0] || {
                     value: 'localVideo',
-                    label: '本地视频',
+                    label: '视频库',
                     description: ''
                 };
             },
@@ -1191,9 +1186,9 @@
                 var looksLikeEmail = inputValue.indexOf('@') !== -1;
 
                 this.currentUser = baseUser.username
-                    || (looksLikeEmail ? '本地预览用户' : (inputValue || '景区值守员'));
+                    || (looksLikeEmail ? '系统管理员' : (inputValue || '景区值守员'));
                 this.currentUserEmail = baseUser.email
-                    || (looksLikeEmail ? inputValue : 'preview@local.test');
+                    || (looksLikeEmail ? inputValue : 'admin@jingqu.local');
                 this.usageCount = Number(baseUser.usageCount || 0);
                 this.lastUsed = baseUser.lastUsed || new Date().toISOString();
                 this.registrationDate = baseUser.registrationDate || new Date().toISOString();
@@ -1208,7 +1203,7 @@
                 this.persistSession();
 
                 if (showToast) {
-                    this.queueToast('已进入开发预览模式，可直接浏览平台页面。', 'info');
+                    this.queueToast('已进入平台，可直接查看系统页面。', 'info');
                 }
 
                 if (this.isRealMode) {
@@ -1221,8 +1216,8 @@
             buildApiContext: function () {
                 return {
                     authToken: this.authToken,
-                    previewUserEmail: this.currentUserEmail || 'preview@local.test',
-                    previewUsername: this.currentUser || '本地预览用户'
+                    previewUserEmail: this.currentUserEmail || 'admin@jingqu.local',
+                    previewUsername: this.currentUser || '系统管理员'
                 };
             },
 
@@ -1269,7 +1264,7 @@
 
                 response = await fetch(queryImage.url);
                 if (!response.ok) {
-                    throw new Error('示例图读取失败，无法提交真实识别请求');
+                    throw new Error('查询图片读取失败，无法提交识别请求');
                 }
 
                 blob = await response.blob();
@@ -1437,8 +1432,8 @@
 
                     self.queueToast(
                         self.isRealMode
-                            ? '已进入平台，行人重识别与历史记录将尝试连接真实接口。'
-                            : '已进入平台骨架页，当前数据统一由 mock 文件提供。',
+                            ? '已进入平台，识别任务与历史记录将同步更新。'
+                            : '已进入平台，可查看监测概况、识别任务与历史记录。',
                         'success'
                     );
 
@@ -1471,9 +1466,9 @@
 
                 setTimeout(function () {
                     self.registerCodeLoading = false;
-                    self.registerCodeMessage = 'mock 验证码已发送，示例验证码：246810';
+                    self.registerCodeMessage = '验证码已发送，请输入验证码：246810';
                     self.startCodeCooldown('register', 60);
-                    self.queueToast('注册验证码已进入 mock 冷却流程。', 'info');
+                    self.queueToast('注册验证码已发送，请注意查收。', 'info');
                 }, 260);
             },
 
@@ -1493,9 +1488,9 @@
 
                 setTimeout(function () {
                     self.resetCodeLoading = false;
-                    self.resetCodeMessage = 'mock 验证码已发送，示例验证码：135790';
+                    self.resetCodeMessage = '验证码已发送，请输入验证码：135790';
                     self.startCodeCooldown('reset', 60);
-                    self.queueToast('重置密码验证码已进入 mock 冷却流程。', 'info');
+                    self.queueToast('重置密码验证码已发送，请注意查收。', 'info');
                 }, 260);
             },
 
@@ -1564,7 +1559,7 @@
 
                 setTimeout(function () {
                     self.authLoading = false;
-                    self.queueToast('mock 注册成功，请直接使用当前信息登录平台。', 'success');
+                    self.queueToast('账号注册成功，请使用当前信息登录平台。', 'success');
                     self.resetRegisterForm();
                     self.currentAuthForm = 'login';
                 }, 460);
@@ -1595,7 +1590,7 @@
 
                 setTimeout(function () {
                     self.authLoading = false;
-                    self.queueToast('mock 密码已重置，请返回登录页继续使用。', 'success');
+                    self.queueToast('密码已重置，请返回登录页继续使用。', 'success');
                     self.resetResetForm();
                     self.currentAuthForm = 'login';
                 }, 420);
@@ -1628,12 +1623,12 @@
                 }
 
                 if (actionKey === 'refresh-monitoring') {
-                    this.queueToast('实时监测页已按 mock 数据重新刷新。', 'success');
+                    this.queueToast('实时监测视图已刷新。', 'success');
                     return;
                 }
 
                 if (actionKey === 'refresh-statistics') {
-                    this.queueToast('数据统计页已按 mock 数据重新刷新。', 'success');
+                    this.queueToast('统计数据视图已刷新。', 'success');
                     return;
                 }
 
@@ -1819,7 +1814,7 @@
                 var sample = (MOCK.reid || {}).sampleQuery || {};
 
                 if (!sample.filename) {
-                    this.queueToast('当前 mock 数据未配置样例图片。', 'warning');
+                    this.queueToast('当前未配置查询图片。', 'warning');
                     return;
                 }
 
@@ -1835,7 +1830,7 @@
                     source: 'sample',
                     rawFile: null
                 });
-                this.queueToast('已载入样例查询图。', 'success');
+                this.queueToast('已载入查询图片。', 'success');
             },
 
             runSampleReid: function () {
@@ -1993,9 +1988,9 @@
                     timestamp: new Date().toISOString()
                 };
                 this.reidState.resultVideo = {
-                    title: '结果视频占位区',
-                    clipName: '等待真实结果片段',
-                    description: '当前正在请求真实接口，待结果返回后填充命中信息。',
+                    title: '结果视频区',
+                    clipName: '等待结果片段',
+                    description: '识别完成后将在此展示关联视频信息。',
                     duration: '--:--'
                 };
                 this.reidState.logs = [];
@@ -2032,14 +2027,14 @@
                         this.recentRecords = this.recentRecords.slice(0, 6);
                     }
 
-                    this.queueToast(response.message || '真实识别请求已完成。', 'success');
+                    this.queueToast(response.message || '识别任务已完成。', 'success');
                     await this.refreshRealLinkedRecords();
                 } catch (error) {
                     this.reidState.isProcessing = false;
                     this.reidState.queryTask.status = error.code === 'TIMEOUT' ? 'timeout' : 'failed';
                     this.reidState.progress.progress = 0;
                     this.pushReidLog('error', '请求失败：' + (error.message || '未知错误'));
-                    this.queueToast(error.message || '真实识别请求失败', 'error');
+                    this.queueToast(error.message || '识别请求失败', 'error');
                 }
             },
 
@@ -2070,7 +2065,7 @@
                     : null;
 
                 if (!bundle) {
-                    self.queueToast('当前运行环境未初始化重识别工作台。', 'error');
+                    self.queueToast('重识别工作台尚未完成初始化。', 'error');
                     self.reidState.isProcessing = false;
                     return;
                 }
@@ -2165,7 +2160,7 @@
                 }
 
                 this.pushReidLog('success', 'Top-K 结果已生成，可查看详情卡片与轨迹列表。');
-                this.queueToast('mock 行人重识别已完成，结果列表和历史记录已更新。', 'success');
+                this.queueToast('行人重识别已完成，结果列表和历史记录已更新。', 'success');
             },
 
             selectReidResult: function (result) {

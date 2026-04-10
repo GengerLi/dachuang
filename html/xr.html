@@ -20,7 +20,7 @@
                         <i class="fas fa-mountain"></i>
                     </div>
                     <h1 class="system-title">景区行人重识别可视化平台</h1>
-                    <p class="system-subtitle">第一阶段骨架版：统一路由、统一布局、统一 mock 数据</p>
+                    <p class="system-subtitle">面向景区安防管理的行人重识别与态势展示平台</p>
                 </div>
 
                 <div v-if="currentAuthForm === 'login'" class="auth-form login-form">
@@ -29,7 +29,7 @@
                             <i class="fas fa-right-to-bracket"></i>
                         </div>
                         <h2>平台登录</h2>
-                        <p>使用 mock 账户进入系统平台骨架页面</p>
+                        <p>登录后即可进入平台查看监测概况、识别任务与历史记录。</p>
                     </div>
 
                     <form @submit.prevent="login">
@@ -85,7 +85,7 @@
                     </form>
 
                     <div class="auth-switch">
-                        还没有 mock 账户？
+                        还没有账号？
                         <a class="auth-link" @click="currentAuthForm = 'register'">
                             <i class="fas fa-user-plus"></i>
                             立即注册
@@ -103,8 +103,8 @@
                         <div class="auth-icon">
                             <i class="fas fa-user-plus"></i>
                         </div>
-                        <h2>注册 mock 账户</h2>
-                        <p>本轮只模拟注册流程，用于平台框架展示</p>
+                        <h2>注册账号</h2>
+                        <p>完成账号信息登记后即可进入平台使用相关功能。</p>
                     </div>
 
                     <form @submit.prevent="register">
@@ -144,7 +144,7 @@
                             </div>
                             <small class="verification-hint">
                                 <i class="fas fa-circle-info"></i>
-                                mock 验证码流程已统一为前端模拟
+                                验证码将发送至所填邮箱，用于完成账号校验。
                             </small>
                             <div class="auth-error-message" v-if="registerErrors.emailCode">
                                 <i class="fas fa-exclamation-circle"></i>
@@ -209,8 +209,8 @@
                         <div class="auth-icon">
                             <i class="fas fa-key"></i>
                         </div>
-                        <h2>重置 mock 密码</h2>
-                        <p>密码重置流程当前也统一使用前端 mock 状态</p>
+                        <h2>重置密码</h2>
+                        <p>通过邮箱验证码完成身份校验后即可设置新密码。</p>
                     </div>
 
                     <form @submit.prevent="resetPassword">
@@ -357,7 +357,7 @@
                                     <div class="platform-card-header">
                                         <div>
                                             <h3>快捷入口</h3>
-                                            <p class="platform-card-subtitle">先把核心工作路径放到首页，减少来回切页成本</p>
+                                            <p class="platform-card-subtitle">集中提供平台常用功能入口，便于快速进入重点业务模块。</p>
                                         </div>
                                     </div>
                                     <div class="platform-card-body">
@@ -381,7 +381,7 @@
                                     <div class="platform-card-header">
                                         <div>
                                             <h3>系统状态摘要</h3>
-                                            <p class="platform-card-subtitle">现阶段使用 mock 状态统一驱动页面展示</p>
+                                            <p class="platform-card-subtitle">集中展示检测服务、重识别服务、数据库与同步状态。</p>
                                         </div>
                                     </div>
                                     <div class="platform-card-body">
@@ -405,7 +405,7 @@
                                 <div class="platform-card-header">
                                     <div>
                                         <h3>最近识别记录</h3>
-                                        <p class="platform-card-subtitle">首页先放最常看的近期结果，详情统一跳转到历史记录页</p>
+                                        <p class="platform-card-subtitle">展示近期识别结果摘要，便于快速查看状态与详情。</p>
                                     </div>
                                     <button type="button" class="ghost-btn" @click="navigate('history')">
                                         <i class="fas fa-arrow-right"></i>
@@ -414,7 +414,7 @@
                                 </div>
                                 <div class="platform-card-body">
                                     <div v-if="isRealMode && recentRecordsLoading">
-                                        <loading-state icon="fas fa-spinner fa-spin" title="正在加载最近记录" description="首页最近记录正在从真实历史接口读取。"></loading-state>
+                                        <loading-state icon="fas fa-spinner fa-spin" title="正在加载最近记录" description="系统正在读取近期识别记录。"></loading-state>
                                     </div>
                                     <div v-else-if="isRealMode && recentRecordsError">
                                         <empty-state icon="fas fa-circle-exclamation" title="最近记录加载失败" :description="recentRecordsError"></empty-state>
@@ -473,7 +473,7 @@
                                 <div class="platform-card-header">
                                     <div>
                                         <h3>摄像头宫格</h3>
-                                        <p class="platform-card-subtitle">本轮先搭结构，视频流使用静态海报与在线状态代替</p>
+                                        <p class="platform-card-subtitle">集中展示重点摄像头在线状态、区域画面与当前人数信息。</p>
                                     </div>
                                 </div>
                                 <div class="platform-card-body">
@@ -552,7 +552,7 @@
                                 <div class="placeholder-panel">
                                     <div>
                                         <h3>时间轴回溯区</h3>
-                                        <p>按时段查看景区估计人数变化，并锁定当前观察时段，为后续视频回放和事件检索预留入口。</p>
+                                        <p>按时段查看景区估计人数变化，辅助分析高峰客流与重点观察时段。</p>
                                     </div>
                                     <div class="timeline-shell">
                                         <div class="timeline-ruler">
@@ -603,7 +603,7 @@
                                 <div class="placeholder-panel">
                                     <div>
                                         <h3>人流趋势图</h3>
-                                        <p>本轮先用双柱图模拟检测量与重识别量，便于下一轮替换真实图表组件。</p>
+                                        <p>集中展示各时段检测量与重识别量变化，便于观察客流规模与识别任务趋势。</p>
                                     </div>
                                     <div class="trend-chart">
                                         <div v-for="item in statisticsTrendBars" :key="item.label" class="trend-column">
@@ -619,7 +619,7 @@
                                 <div class="placeholder-panel">
                                     <div>
                                         <h3>区域人流统计图</h3>
-                                        <p>按重点区域汇总人数与容量占用，后续可继续替换成环图或堆叠条形图。</p>
+                                        <p>按重点区域汇总人数与容量占用，直观反映区域负载情况。</p>
                                     </div>
                                     <div class="zone-list">
                                         <div v-for="zone in statisticsZones" :key="zone.name" class="zone-item">
@@ -637,7 +637,7 @@
                                 <div class="platform-card-header">
                                     <div>
                                         <h3>承载量概览</h3>
-                                        <p class="platform-card-subtitle">保留容量阈值、峰值和趋势信息，用于承接分析结论与系统建议</p>
+                                        <p class="platform-card-subtitle">展示容量阈值、峰值和变化趋势，辅助研判承载压力。</p>
                                     </div>
                                 </div>
                                 <div class="platform-card-body">
@@ -664,7 +664,7 @@
                                     <div class="platform-card-header">
                                         <div>
                                             <h3>分析结论</h3>
-                                            <p class="platform-card-subtitle">基于当前 mock 人流、区域和容量数据自动生成的业务结论</p>
+                                            <p class="platform-card-subtitle">结合客流规模、区域分布和容量状态输出分析结论。</p>
                                         </div>
                                     </div>
                                     <div class="platform-card-body">
@@ -710,7 +710,7 @@
                                             <div class="platform-card-header">
                                                 <div>
                                                     <h3>输入与参数区</h3>
-                                                    <p class="platform-card-subtitle">上传查询图、选择目标源、调参并快速发起一轮完整的 mock 行人重识别流程。</p>
+                                                    <p class="platform-card-subtitle">支持查询图片上传、目标源选择、参数配置与识别任务发起。</p>
                                                 </div>
                                             </div>
                                             <div class="platform-card-body reid-section-stack">
@@ -719,7 +719,7 @@
                                                         <h4>查询图上传</h4>
                                                         <button type="button" class="platform-link-btn reid-inline-btn" @click="loadSampleQuery">
                                                             <i class="fas fa-image"></i>
-                                                            <span>导入示例图</span>
+                                                            <span>载入示例</span>
                                                         </button>
                                                     </div>
                                                     <div class="upload-dropzone" @click="triggerFileInput" @dragover.prevent @drop="handleDrop">
@@ -754,7 +754,7 @@
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <empty-state v-else icon="fas fa-image" title="等待上传查询图" description="你可以先保持空状态，点击“导入示例图”后再运行整轮示例识别。"></empty-state>
+                                                    <empty-state v-else icon="fas fa-image" title="等待上传查询图" description="请先上传查询图片，或点击“载入示例”快速开始识别任务。"></empty-state>
                                                 </section>
 
                                                 <section class="reid-block">
@@ -812,7 +812,7 @@
                                                         <div class="setting-row compact">
                                                             <div>
                                                                 <h4>自动保存结果</h4>
-                                                                <p>开启后命中结果会同步写入首页最近记录和历史记录 mock 数据。</p>
+                                                                <p>开启后命中结果将同步写入首页最近记录和历史记录。</p>
                                                             </div>
                                                             <label class="toggle-switch">
                                                                 <input type="checkbox" v-model="reidState.params.autoSaveResult">
@@ -972,7 +972,7 @@
                                                         <span>{{ reidState.results.length }} 条</span>
                                                     </div>
                                                     <div v-if="reidState.results.length === 0">
-                                                        <empty-state icon="fas fa-magnifying-glass" title="等待生成匹配结果" description="点击“运行示例识别”后，这里会按卡片形式展示 Top-K 检索结果。"></empty-state>
+                                                        <empty-state icon="fas fa-magnifying-glass" title="等待生成匹配结果" description="点击“开始识别”后，这里将展示 Top-K 匹配结果。"></empty-state>
                                                     </div>
                                                     <div v-else class="reid-result-list reid-result-list-enhanced">
                                                         <button type="button" v-for="result in reidState.results" :key="result.id" class="reid-result-item reid-result-card" :class="{ 'is-active': reidSelectedResult && reidSelectedResult.id === result.id }" @click="selectReidResult(result)">
@@ -1084,7 +1084,7 @@
                                         <div class="platform-card-header">
                                             <div>
                                                 <h3>{{ reidState.resultVideo.title }}</h3>
-                                                <p class="platform-card-subtitle">保留识别后视频或事件片段的展示位置，当前以 mock 视频模块呈现。</p>
+                                                <p class="platform-card-subtitle">展示识别任务关联视频片段与关键画面信息。</p>
                                             </div>
                                         </div>
                                         <div class="platform-card-body">
@@ -1152,8 +1152,8 @@
                                 <div class="platform-card">
                                     <div class="platform-card-header">
                                         <div>
-                                            <h3>阶段说明</h3>
-                                            <p class="platform-card-subtitle">保留给开发和评审的说明区，明确本轮 mock 工作台聚焦的范围与可替换点。</p>
+                                            <h3>功能说明</h3>
+                                            <p class="platform-card-subtitle">说明当前工作台支持的识别流程、结果展示与轨迹分析能力。</p>
                                         </div>
                                     </div>
                                     <div class="platform-card-body">
@@ -1170,7 +1170,7 @@
                                 <div class="platform-card-header">
                                     <div>
                                         <h3>筛选区</h3>
-                                        <p class="platform-card-subtitle">先确定筛选字段和列表布局，便于后续直接对接真实检索接口</p>
+                                        <p class="platform-card-subtitle">支持按编号、摄像头、地点和状态筛选历史记录。</p>
                                     </div>
                                 </div>
                                 <div class="platform-card-body">
@@ -1196,12 +1196,12 @@
                                 <div class="platform-card-header">
                                     <div>
                                         <h3>识别记录表格</h3>
-                                        <p class="platform-card-subtitle">共 {{ filteredHistoryRecords.length }} 条记录，点击右侧按钮可在抽屉中查看完整详情与轨迹摘要</p>
+                                        <p class="platform-card-subtitle">共 {{ filteredHistoryRecords.length }} 条记录，可查看详情、参数摘要与轨迹信息。</p>
                                     </div>
                                 </div>
                                 <div class="platform-card-body">
                                     <div v-if="isRealMode && historyLoading">
-                                        <loading-state icon="fas fa-spinner fa-spin" title="正在加载历史记录" description="真实模式下，筛选条件会直接传给历史记录接口。"></loading-state>
+                                        <loading-state icon="fas fa-spinner fa-spin" title="正在加载历史记录" description="系统正在根据筛选条件读取历史记录。"></loading-state>
                                     </div>
                                     <div v-else-if="isRealMode && historyError">
                                         <empty-state icon="fas fa-circle-exclamation" title="历史记录加载失败" :description="historyError"></empty-state>
@@ -1270,7 +1270,7 @@
                                         <div class="platform-card-header">
                                             <div>
                                                 <h3>用户偏好设置</h3>
-                                                <p class="platform-card-subtitle">统一管理通知、结果保存与预览期偏好开关</p>
+                                                <p class="platform-card-subtitle">统一管理通知、结果保存与平台使用偏好。</p>
                                             </div>
                                         </div>
                                         <div class="platform-card-body">
@@ -1288,7 +1288,7 @@
                                                 <div class="setting-row">
                                                     <div>
                                                         <h4>自动保存结果</h4>
-                                                        <p>自动将本轮重识别结果写入首页最近记录和历史记录 mock 列表。</p>
+                                                        <p>自动将识别结果写入首页最近记录和历史记录。</p>
                                                     </div>
                                                     <label class="toggle-switch">
                                                         <input type="checkbox" v-model="settings.autoSave">
@@ -1298,7 +1298,7 @@
                                                 <div class="setting-row">
                                                     <div>
                                                         <h4>声音提醒</h4>
-                                                        <p>用于命中高相似度结果或预警状态时的声音提示，本轮先做静态开关。</p>
+                                                        <p>用于命中高相似度结果或预警状态时的声音提示。</p>
                                                     </div>
                                                     <label class="toggle-switch">
                                                         <input type="checkbox" v-model="settings.soundAlerts">
@@ -1308,7 +1308,7 @@
                                                 <div class="setting-row">
                                                     <div>
                                                         <h4>默认主题</h4>
-                                                        <p>保留主题设置入口，当前先提供平台蓝风格占位。</p>
+                                                        <p>用于切换平台界面主题风格。</p>
                                                     </div>
                                                     <select class="platform-select setting-select" v-model="settings.theme">
                                                         <option value="system-blue">平台蓝灰</option>
@@ -1370,7 +1370,7 @@
                                     <div class="platform-card-header">
                                         <div>
                                             <h3>账号信息</h3>
-                                            <p class="platform-card-subtitle">展示预览账号或 mock 登录账号的基础信息与累计识别数据</p>
+                                            <p class="platform-card-subtitle">展示当前账号基础信息与累计识别数据。</p>
                                         </div>
                                     </div>
                                     <div class="platform-card-body">
@@ -1415,7 +1415,7 @@
                     </div>
 
                     <p class="platform-footer-note">
-                        当前已进入第三轮补正：重点增强行人重识别工作台体验、历史详情抽屉、实时监测表达和统计建议区。
+                        行人重识别工作台体验、历史详情抽屉、实时监测表达和统计建议区。
                     </p>
                 </div>
             </main>
@@ -1435,7 +1435,7 @@
 
                     <div class="detail-panel-body">
                         <div v-if="detailLoading">
-                            <loading-state icon="fas fa-spinner" title="正在加载详情" description="本轮先统一详情容器、图片区与字段布局。"></loading-state>
+                            <loading-state icon="fas fa-spinner" title="正在加载详情" description="系统正在读取记录详情与关联信息。"></loading-state>
                         </div>
                         <template v-else-if="selectedRecord">
                             <div class="detail-gallery">

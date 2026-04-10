@@ -7,8 +7,8 @@ window.REID_MOCK_DATA = {
         registrationDate: '2026-03-02T10:00:00+08:00'
     },
     previewUser: {
-        username: '本地预览用户',
-        email: 'preview@local.test',
+        username: '系统管理员',
+        email: 'admin@jingqu.local',
         usageCount: 12,
         lastUsed: '2026-04-10T08:32:00+08:00',
         registrationDate: '2026-03-27T10:00:00+08:00'
@@ -399,7 +399,7 @@ window.REID_MOCK_DATA = {
     reid: {
         sampleQuery: {
             filename: '0001_c1s1_000010_01.jpg',
-            name: 'sample-query-01.jpg',
+            name: 'query-image-01.jpg',
             sizeBytes: 248360,
             width: 720,
             height: 960
@@ -407,18 +407,18 @@ window.REID_MOCK_DATA = {
         sourceOptions: [
             {
                 value: 'localVideo',
-                label: '本地视频',
+                label: '视频库',
                 description: '南门巡检录像 / 15 分钟片段'
             },
             {
                 value: 'cameraStream',
-                label: '摄像头源',
-                description: '实时摄像头回放源'
+                label: '实时监控源',
+                description: '景区实时监控画面'
             },
             {
                 value: 'historyLibrary',
-                label: '历史库',
-                description: '重点区域历史抓拍库'
+                label: '历史图像库',
+                description: '重点区域历史抓拍记录'
             }
         ],
         params: {
@@ -476,7 +476,7 @@ window.REID_MOCK_DATA = {
                 matchedCandidates: 0,
                 finishedResults: 0,
                 level: 'info',
-                message: '已加载查询图，开始进行图像预处理。',
+                message: '查询图片已加载，正在执行图像预处理。',
                 frameIndex: 0
             },
             {
@@ -486,7 +486,7 @@ window.REID_MOCK_DATA = {
                 matchedCandidates: 4,
                 finishedResults: 0,
                 level: 'info',
-                message: '已选择目标源，正在抽取行人特征。',
+                message: '目标源已确认，正在提取行人特征。',
                 frameIndex: 1
             },
             {
@@ -496,7 +496,7 @@ window.REID_MOCK_DATA = {
                 matchedCandidates: 9,
                 finishedResults: 1,
                 level: 'info',
-                message: '正在检索历史候选记录并执行相似度比对。',
+                message: '正在检索候选记录并执行相似度比对。',
                 frameIndex: 2
             },
             {
@@ -506,7 +506,7 @@ window.REID_MOCK_DATA = {
                 matchedCandidates: 12,
                 finishedResults: 3,
                 level: 'warning',
-                message: '正在排序 Top-K 候选并生成详情摘要。',
+                message: '正在生成 Top-K 匹配结果与详情摘要。',
                 frameIndex: 2
             },
             {
@@ -516,14 +516,14 @@ window.REID_MOCK_DATA = {
                 matchedCandidates: 14,
                 finishedResults: 5,
                 level: 'success',
-                message: '结果生成完成，已输出轨迹和命中详情。',
+                message: '识别任务已完成，结果与轨迹信息已生成。',
                 frameIndex: 3
             }
         ],
         resultVideo: {
-            title: '结果视频占位区',
+            title: '结果视频区',
             clipName: '等待生成结果片段',
-            description: '当前保留为视频回放模块占位，下一轮可接真实视频片段或事件回放。',
+            description: '用于展示识别任务关联视频片段与关键画面信息。',
             duration: '--:--'
         },
         resultCatalog: [
@@ -536,9 +536,9 @@ window.REID_MOCK_DATA = {
                 status: 'verified',
                 note: '与南门广场重点检索片段高度匹配。',
                 resultClip: {
-                    title: '结果视频占位区',
+                    title: '结果视频区',
                     clipName: '南门广场_A01.mp4',
-                    description: '可替换成真实视频回放组件或按帧回放。',
+                    description: '展示南门广场关联视频片段与关键画面。',
                     duration: '00:18'
                 },
                 currentFrame: {
@@ -562,9 +562,9 @@ window.REID_MOCK_DATA = {
                 status: 'verified',
                 note: '服饰纹理与步态特征接近。',
                 resultClip: {
-                    title: '结果视频占位区',
+                    title: '结果视频区',
                     clipName: '缆车入口_B07.mp4',
-                    description: '后续可切换到录像片段回放。',
+                    description: '展示缆车入口关联录像片段。',
                     duration: '00:14'
                 },
                 currentFrame: {
@@ -588,9 +588,9 @@ window.REID_MOCK_DATA = {
                 status: 'review',
                 note: '遮挡较多，建议人工二次复核。',
                 resultClip: {
-                    title: '结果视频占位区',
+                    title: '结果视频区',
                     clipName: '湖心步道_C03.mp4',
-                    description: '可用于复核轨迹的重点片段。',
+                    description: '展示湖心步道相关画面，便于复核轨迹。',
                     duration: '00:11'
                 },
                 currentFrame: {
@@ -614,9 +614,9 @@ window.REID_MOCK_DATA = {
                 status: 'review',
                 note: '远景拍摄导致轮廓信息偏弱。',
                 resultClip: {
-                    title: '结果视频占位区',
+                    title: '结果视频区',
                     clipName: '山顶观景台_D09.mp4',
-                    description: '作为后续多帧复核的占位片段。',
+                    description: '展示山顶观景台关联片段，便于多帧复核。',
                     duration: '00:09'
                 },
                 currentFrame: {
@@ -640,9 +640,9 @@ window.REID_MOCK_DATA = {
                 status: 'review',
                 note: '相似度略高于预警线，但场景跨度较大。',
                 resultClip: {
-                    title: '结果视频占位区',
+                    title: '结果视频区',
                     clipName: '北门停车场_E02.mp4',
-                    description: '保留为外场车辆区回放入口。',
+                    description: '展示北门停车场相关画面，用于辅助复核。',
                     duration: '00:13'
                 },
                 currentFrame: {
@@ -659,9 +659,9 @@ window.REID_MOCK_DATA = {
             }
         ],
         hints: [
-            '当前为开发预览阶段，识别过程和结果统一由 mock 数据与定时器驱动。',
-            '本轮重点验证工作台布局、参数操作、过程状态和 Top-K 结果联动。',
-            '后续可直接把任务状态、日志、结果列表替换成真实接口返回。'
+            '支持上传查询图片并发起行人重识别任务。',
+            '结果区集中展示 Top-K 匹配结果、参数摘要与轨迹信息。',
+            '首页与历史记录可同步查看识别任务摘要和保存状态。'
         ]
     },
     settings: {
