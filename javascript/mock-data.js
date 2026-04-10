@@ -398,7 +398,7 @@ window.REID_MOCK_DATA = {
     },
     reid: {
         sampleQuery: {
-            filename: '0001_c1s1_000010_01.jpg',
+            filename: '0002_c1s1_000012_02.jpg',
             name: 'query-image-01.jpg',
             sizeBytes: 248360,
             width: 720,
