@@ -30,6 +30,20 @@
     margin-bottom: 30px;
 }
 
+.auth-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 16px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+    background: linear-gradient(135deg, #6a11cb, #2575fc);
+    box-shadow: 0 10px 24px rgba(37, 117, 252, 0.2);
+}
+
 .auth-header h2 {
     color: #2c3e50;
     font-size: 1.5rem;

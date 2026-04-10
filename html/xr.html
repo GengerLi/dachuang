@@ -1,69 +1,35 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>行人重识别系统</title>
-    <!-- CSS文件 -->
+    <title>景区行人重识别可视化平台</title>
     <link rel="stylesheet" href="../css/base.css">
     <link rel="stylesheet" href="../css/layout.css">
     <link rel="stylesheet" href="../css/auth.css">
-    <link rel="stylesheet" href="../css/components.css">
-    <link rel="stylesheet" href="../css/main.css">
-    <link rel="stylesheet" href="../css/footer.css">
-    <link rel="stylesheet" href="../css/admin.css">
-    <!-- Font Awesome图标库 -->
+    <link rel="stylesheet" href="../css/platform.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Vue.js -->
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
 </head>
-
-<style>
-.match-details {
-    margin-top: 10px;
-    text-align: center;
-    color: #333;
-    font-size: 15px;
-}
-.match-info-box {
-    display: inline-block;
-    background: #f8f9fa;
-    border-radius: 10px;
-    padding: 10px 20px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-.match-info-box p {
-    margin: 5px 0;
-}
-.match-info-box i {
-    color: #007bff;
-    margin-right: 6px;
-}
-</style>
-
 <body>
     <div id="app">
-        <!-- 认证页面 -->
         <div v-if="!isLoggedIn" class="auth-page">
             <div class="auth-container">
-                <!-- 系统标题 -->
                 <div class="system-header">
                     <div class="system-logo">
-                        <i class="fas fa-user-friends"></i>
+                        <i class="fas fa-mountain"></i>
                     </div>
-                    <h1 class="system-title">行人重识别系统</h1>
-                    <p class="system-subtitle">基于Web的智能行人重识别系统</p>
+                    <h1 class="system-title">景区行人重识别可视化平台</h1>
+                    <p class="system-subtitle">面向景区安防管理的行人重识别与态势展示平台</p>
                 </div>
 
-                <!-- 登录表单 -->
                 <div v-if="currentAuthForm === 'login'" class="auth-form login-form">
                     <div class="auth-header">
                         <div class="auth-icon">
-                            <i class="fas fa-sign-in-alt"></i>
+                            <i class="fas fa-right-to-bracket"></i>
                         </div>
-                        <h2>欢迎回来</h2>
-                        <p>请登录您的账户</p>
+                        <h2>平台登录</h2>
+                        <p>登录后即可进入平台查看监测概况、识别任务与历史记录。</p>
                     </div>
 
                     <form @submit.prevent="login">
@@ -74,22 +40,21 @@
                             </div>
                             <div class="auth-error-message" v-if="loginErrors.username">
                                 <i class="fas fa-exclamation-circle"></i>
-                                请输入有效的用户名或邮箱
+                                请输入用户名或邮箱
                             </div>
                         </div>
 
                         <div class="form-group">
                             <div class="input-with-icon">
                                 <i class="fas fa-lock input-icon"></i>
-                                <input :type="showLoginPassword ? 'text' : 'password'" v-model="loginForm.password"
-                                    placeholder="密码" required>
+                                <input :type="showLoginPassword ? 'text' : 'password'" v-model="loginForm.password" placeholder="密码" required>
                                 <span class="password-toggle" @click="showLoginPassword = !showLoginPassword">
                                     <i :class="showLoginPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
                                 </span>
                             </div>
                             <div class="auth-error-message" v-if="loginErrors.password">
                                 <i class="fas fa-exclamation-circle"></i>
-                                密码不能为空
+                                密码至少需要 6 位字符
                             </div>
                         </div>
 
@@ -101,36 +66,35 @@
                                 </span>
                                 记住我
                             </label>
-                            <a @click="currentAuthForm = 'reset'" class="auth-link">
+                            <a class="auth-link" @click="currentAuthForm = 'reset'">
                                 <i class="fas fa-key"></i>
-                                忘记密码?
+                                重置密码
                             </a>
                         </div>
 
                         <button type="submit" class="auth-btn primary" :disabled="authLoading">
                             <i v-if="authLoading" class="fas fa-spinner fa-spin"></i>
-                            <i v-else class="fas fa-sign-in-alt"></i>
-                            {{ authLoading ? '登录中...' : '登录' }}
+                            <i v-else class="fas fa-right-to-bracket"></i>
+                            {{ authLoading ? '登录中...' : '进入平台' }}
                         </button>
 
                         <div class="auth-success-message" v-if="loginSuccess">
                             <i class="fas fa-check-circle"></i>
-                            登录成功！
+                            登录成功，正在进入平台...
                         </div>
                     </form>
 
                     <div class="auth-switch">
-                        还没有账户?
-                        <a @click="currentAuthForm = 'register'" class="auth-link">
+                        还没有账号？
+                        <a class="auth-link" @click="currentAuthForm = 'register'">
                             <i class="fas fa-user-plus"></i>
                             立即注册
                         </a>
                     </div>
                 </div>
 
-                <!-- 注册表单 -->
                 <div v-else-if="currentAuthForm === 'register'" class="auth-form register-form">
-                    <div class="auth-back" @click="currentAuthForm = 'login'">
+                    <div class="auth-back" @click="switchToLogin">
                         <i class="fas fa-arrow-left"></i>
                         <span>返回登录</span>
                     </div>
@@ -139,8 +103,8 @@
                         <div class="auth-icon">
                             <i class="fas fa-user-plus"></i>
                         </div>
-                        <h2>创建账户</h2>
-                        <p>注册新用户账户</p>
+                        <h2>注册账号</h2>
+                        <p>完成账号信息登记后即可进入平台使用相关功能。</p>
                     </div>
 
                     <form @submit.prevent="register">
@@ -151,7 +115,7 @@
                             </div>
                             <div class="auth-error-message" v-if="registerErrors.username">
                                 <i class="fas fa-exclamation-circle"></i>
-                                用户名不能为空
+                                用户名至少需要 3 个字符
                             </div>
                         </div>
 
@@ -170,26 +134,21 @@
                             <div class="verification-row">
                                 <div class="input-with-icon verification-input">
                                     <i class="fas fa-shield-alt input-icon"></i>
-                                    <input type="text" v-model="registerForm.emailCode" placeholder="邮箱验证码"
-                                        maxlength="6" inputmode="numeric"
-                                        @input="registerForm.emailCode = registerForm.emailCode.replace(/\D/g, '').slice(0, 6)"
-                                        required>
+                                    <input type="text" v-model="registerForm.emailCode" placeholder="邮箱验证码" maxlength="6" inputmode="numeric" @input="registerForm.emailCode = registerForm.emailCode.replace(/\D/g, '').slice(0, 6)" required>
                                 </div>
-                                <button type="button" class="auth-btn secondary verification-btn"
-                                    @click="sendRegisterCode"
-                                    :disabled="registerCodeLoading || registerCodeCooldown > 0 || authLoading">
+                                <button type="button" class="auth-btn secondary verification-btn" @click="sendRegisterCode" :disabled="registerCodeLoading || registerCodeCooldown > 0 || authLoading">
                                     <i v-if="registerCodeLoading" class="fas fa-spinner fa-spin"></i>
                                     <i v-else class="fas fa-paper-plane"></i>
                                     {{ registerCodeLoading ? '发送中...' : (registerCodeCooldown > 0 ? registerCodeCooldown + '秒后重试' : '发送验证码') }}
                                 </button>
                             </div>
                             <small class="verification-hint">
-                                <i class="fas fa-envelope-open-text"></i>
-                                验证码 10 分钟内有效，重新发送后旧验证码会失效
+                                <i class="fas fa-circle-info"></i>
+                                验证码将发送至所填邮箱，用于完成账号校验。
                             </small>
                             <div class="auth-error-message" v-if="registerErrors.emailCode">
                                 <i class="fas fa-exclamation-circle"></i>
-                                请输入 6 位邮箱验证码
+                                请输入 6 位验证码
                             </div>
                             <div class="auth-info-message" v-if="registerCodeMessage">
                                 <i class="fas fa-circle-info"></i>
@@ -200,47 +159,28 @@
                         <div class="form-group">
                             <div class="input-with-icon">
                                 <i class="fas fa-lock input-icon"></i>
-                                <input :type="showRegisterPassword ? 'text' : 'password'"
-                                    v-model="registerForm.password" placeholder="密码" required
-                                    @input="checkPasswordStrength">
+                                <input :type="showRegisterPassword ? 'text' : 'password'" v-model="registerForm.password" placeholder="密码" @input="checkPasswordStrength" required>
                                 <span class="password-toggle" @click="showRegisterPassword = !showRegisterPassword">
                                     <i :class="showRegisterPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
                                 </span>
                             </div>
-
-                            <!-- 密码强度显示 -->
                             <div class="password-strength-container" v-if="registerForm.password">
-                                <div class="password-strength" :class="passwordStrengthClass"></div>
-                                <div class="password-strength-text" :class="passwordStrengthClass">
+                                <div class="password-strength" :class="passwordStrength"></div>
+                                <div class="password-strength-text" :class="passwordStrength">
                                     <i :class="getPasswordStrengthIcon"></i>
                                     {{ getPasswordStrengthText }}
                                 </div>
                             </div>
-
-                            <!-- 密码提示 -->
-                            <small class="password-hint">
-                                <i class="fas fa-info-circle"></i>
-                                密码至少6位字符，建议使用字母、数字和特殊字符组合
-                            </small>
-
-                            <!-- 弱密码警告 -->
-                            <div v-if="passwordStrength === 'weak' && registerForm.password.length >= 6"
-                                class="weak-password-warning">
-                                <i class="fas fa-exclamation-triangle"></i>
-                                <span>密码强度较弱，建议增加密码复杂度以提高安全性</span>
-                            </div>
-
                             <div class="auth-error-message" v-if="registerErrors.password">
                                 <i class="fas fa-exclamation-circle"></i>
-                                密码不能少于6个字符
+                                密码至少需要 6 位字符
                             </div>
                         </div>
 
                         <div class="form-group">
                             <div class="input-with-icon">
                                 <i class="fas fa-lock input-icon"></i>
-                                <input :type="showConfirmPassword ? 'text' : 'password'"
-                                    v-model="registerForm.confirmPassword" placeholder="确认密码" required>
+                                <input :type="showConfirmPassword ? 'text' : 'password'" v-model="registerForm.confirmPassword" placeholder="确认密码" required>
                                 <span class="password-toggle" @click="showConfirmPassword = !showConfirmPassword">
                                     <i :class="showConfirmPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
                                 </span>
@@ -251,22 +191,16 @@
                             </div>
                         </div>
 
-                        <button type="submit" class="auth-btn primary" :disabled="authLoading || registerCodeLoading">
+                        <button type="submit" class="auth-btn primary" :disabled="authLoading">
                             <i v-if="authLoading" class="fas fa-spinner fa-spin"></i>
                             <i v-else class="fas fa-user-plus"></i>
-                            {{ authLoading ? '注册中...' : '注册' }}
+                            {{ authLoading ? '注册中...' : '完成注册' }}
                         </button>
-
-                        <div class="auth-success-message" v-if="registerSuccess">
-                            <i class="fas fa-check-circle"></i>
-                            注册成功！
-                        </div>
                     </form>
                 </div>
 
-                <!-- 重置密码表单 -->
-                <div v-else-if="currentAuthForm === 'reset'" class="auth-form reset-form">
-                    <div class="auth-back" @click="currentAuthForm = 'login'">
+                <div v-else class="auth-form reset-form">
+                    <div class="auth-back" @click="switchToLogin">
                         <i class="fas fa-arrow-left"></i>
                         <span>返回登录</span>
                     </div>
@@ -276,14 +210,14 @@
                             <i class="fas fa-key"></i>
                         </div>
                         <h2>重置密码</h2>
-                        <p>请输入邮箱并使用验证码设置新密码</p>
+                        <p>通过邮箱验证码完成身份校验后即可设置新密码。</p>
                     </div>
 
                     <form @submit.prevent="resetPassword">
                         <div class="form-group">
                             <div class="input-with-icon">
                                 <i class="fas fa-envelope input-icon"></i>
-                                <input type="email" v-model="resetForm.email" placeholder="注册时使用的电子邮箱" required>
+                                <input type="email" v-model="resetForm.email" placeholder="电子邮箱" required>
                             </div>
                             <div class="auth-error-message" v-if="resetErrors.email">
                                 <i class="fas fa-exclamation-circle"></i>
@@ -295,26 +229,17 @@
                             <div class="verification-row">
                                 <div class="input-with-icon verification-input">
                                     <i class="fas fa-shield-alt input-icon"></i>
-                                    <input type="text" v-model="resetForm.emailCode" placeholder="邮箱验证码"
-                                        maxlength="6" inputmode="numeric"
-                                        @input="resetForm.emailCode = resetForm.emailCode.replace(/\D/g, '').slice(0, 6)"
-                                        required>
+                                    <input type="text" v-model="resetForm.emailCode" placeholder="邮箱验证码" maxlength="6" inputmode="numeric" @input="resetForm.emailCode = resetForm.emailCode.replace(/\D/g, '').slice(0, 6)" required>
                                 </div>
-                                <button type="button" class="auth-btn secondary verification-btn"
-                                    @click="sendResetCode"
-                                    :disabled="resetCodeLoading || resetCodeCooldown > 0 || authLoading">
+                                <button type="button" class="auth-btn secondary verification-btn" @click="sendResetCode" :disabled="resetCodeLoading || resetCodeCooldown > 0 || authLoading">
                                     <i v-if="resetCodeLoading" class="fas fa-spinner fa-spin"></i>
                                     <i v-else class="fas fa-paper-plane"></i>
                                     {{ resetCodeLoading ? '发送中...' : (resetCodeCooldown > 0 ? resetCodeCooldown + '秒后重试' : '发送验证码') }}
                                 </button>
                             </div>
-                            <small class="verification-hint">
-                                <i class="fas fa-envelope-open-text"></i>
-                                验证码会发送到注册邮箱，10 分钟内有效
-                            </small>
                             <div class="auth-error-message" v-if="resetErrors.emailCode">
                                 <i class="fas fa-exclamation-circle"></i>
-                                请输入 6 位邮箱验证码
+                                请输入 6 位验证码
                             </div>
                             <div class="auth-info-message" v-if="resetCodeMessage">
                                 <i class="fas fa-circle-info"></i>
@@ -327,21 +252,16 @@
                                 <i class="fas fa-lock input-icon"></i>
                                 <input type="password" v-model="resetForm.newPassword" placeholder="新密码" required>
                             </div>
-                            <small class="password-hint">
-                                <i class="fas fa-info-circle"></i>
-                                新密码至少 6 位字符
-                            </small>
                             <div class="auth-error-message" v-if="resetErrors.newPassword">
                                 <i class="fas fa-exclamation-circle"></i>
-                                新密码不能少于 6 个字符
+                                新密码至少需要 6 位字符
                             </div>
                         </div>
 
                         <div class="form-group">
                             <div class="input-with-icon">
                                 <i class="fas fa-lock input-icon"></i>
-                                <input type="password" v-model="resetForm.confirmPassword" placeholder="确认新密码"
-                                    required>
+                                <input type="password" v-model="resetForm.confirmPassword" placeholder="确认新密码" required>
                             </div>
                             <div class="auth-error-message" v-if="resetErrors.confirmPassword">
                                 <i class="fas fa-exclamation-circle"></i>
@@ -349,535 +269,1264 @@
                             </div>
                         </div>
 
-                        <button type="submit" class="auth-btn primary" :disabled="authLoading || resetCodeLoading">
-                            <i v-if="authLoading" class="fas fa-spinner fa-spin"></i>
-                            <i v-else class="fas fa-key"></i>
-                            {{ authLoading ? '重置中...' : '重置密码' }}
-                        </button>
-
-                        <div class="auth-success-message" v-if="resetSuccess">
-                            <i class="fas fa-check-circle"></i>
-                            密码已重置成功，请返回登录。
-                        </div>
-                    </form>
-                </div>
-
-                <!-- 管理员登录表单 -->
-                <div v-else-if="currentAuthForm === 'admin'" class="auth-form admin-form">
-                    <div class="auth-back" @click="switchToLogin">
-                        <i class="fas fa-arrow-left"></i>
-                        <span>返回登录</span>
-                    </div>
-
-                    <div class="auth-header">
-                        <div class="auth-icon">
-                            <i class="fas fa-shield-alt"></i>
-                        </div>
-                        <h2>管理员登录</h2>
-                        <p>请输入管理员密钥</p>
-                    </div>
-
-                    <form @submit.prevent="adminLogin">
-                        <div class="form-group">
-                            <div class="input-with-icon">
-                                <i class="fas fa-key input-icon"></i>
-                                <input type="password" v-model="adminForm.secretKey" placeholder="管理员密钥" required>
-                            </div>
-                            <div class="auth-error-message" v-if="adminErrors.secretKey">
-                                <i class="fas fa-exclamation-circle"></i>
-                                请输入有效的管理员密钥
-                            </div>
-                        </div>
-
                         <button type="submit" class="auth-btn primary" :disabled="authLoading">
                             <i v-if="authLoading" class="fas fa-spinner fa-spin"></i>
-                            <i v-else class="fas fa-sign-in-alt"></i>
-                            {{ authLoading ? '登录中...' : '管理员登录' }}
+                            <i v-else class="fas fa-key"></i>
+                            {{ authLoading ? '提交中...' : '重置密码' }}
                         </button>
                     </form>
                 </div>
             </div>
         </div>
 
-        <!-- 主应用页面 -->
-        <div v-else class="main-app">
-            <!-- 顶部导航 -->
-            <header class="app-header">
-                <div class="header-content">
-                    <div class="header-brand">
-                        <div class="logo">
-                            <i class="fas fa-user-friends"></i>
-                        </div>
-                        <div class="brand-text">
-                            <h1 class="brand-title">行人重识别系统</h1>
-                            <p class="brand-subtitle">智能图像检索平台</p>
+        <div v-else class="platform-shell">
+            <header class="platform-topbar">
+                <div class="platform-topbar-inner">
+                    <div class="platform-brand">
+                        <span class="platform-brand-mark">
+                            <i class="fas fa-binoculars"></i>
+                        </span>
+                        <div class="platform-brand-text">
+                            <h1 class="platform-brand-title">景区行人重识别可视化平台</h1>
+                            <p class="platform-brand-subtitle">景区智能安防与重识别平台</p>
                         </div>
                     </div>
-                    <div class="user-menu">
-                        <div class="user-info">
-                            <i class="fas fa-user-circle user-avatar"></i>
-                            <span class="user-name">欢迎, {{ currentUser }}</span>
+
+                    <nav class="platform-nav">
+                        <button
+                            v-for="item in navItems"
+                            :key="item.route"
+                            type="button"
+                            class="platform-nav-link"
+                            :class="{ 'is-active': currentRoute === item.route }"
+                            @click="navigate(item.route)"
+                        >
+                            <i :class="item.icon"></i>
+                            <span>{{ item.label }}</span>
+                        </button>
+                    </nav>
+
+                    <div class="platform-topbar-actions">
+                        <div class="platform-preview-chip" :class="{ 'is-active': isPreviewMode }">
+                            <i class="fas fa-flask"></i>
+                            <span>{{ previewBadgeText }}</span>
                         </div>
-                        <button @click="logout" class="logout-btn">
-                            <i class="fas fa-sign-out-alt"></i>
-                            退出登录
+                        <div class="platform-user-chip">
+                            <span class="platform-user-avatar">
+                                <i class="fas fa-user"></i>
+                            </span>
+                            <div>
+                                <small>当前账号</small>
+                                <strong>{{ currentUser }}</strong>
+                            </div>
+                        </div>
+                        <button type="button" class="secondary-btn" @click="logout">
+                            <i class="fas fa-right-from-bracket"></i>
+                            <span>退出</span>
                         </button>
                     </div>
                 </div>
             </header>
 
-            <!-- 主内容区域 -->
-            <main class="app-main">
-                <!-- 主导航 -->
-                <nav class="main-nav">
-                    <div class="nav-tabs">
-                        <button :class="['nav-tab', { active: activeTab === 'home' }]" @click="activeTab = 'home'">
-                            <i class="fas fa-home nav-icon"></i>
-                            <span class="nav-text">首页</span>
-                        </button>
-                        <button :class="['nav-tab', { active: activeTab === 'recognition' }]"
-                            @click="activeTab = 'recognition'">
-                            <i class="fas fa-search nav-icon"></i>
-                            <span class="nav-text">行人识别</span>
-                        </button>
-                        <!-- 管理员标签 -->
-                        <button v-if="isAdmin" :class="['nav-tab', { active: activeTab === 'admin' }]" 
-                                @click="activeTab = 'admin'">
-                            <i class="fas fa-users-cog nav-icon"></i>
-                            <span class="nav-text">用户管理</span>
-                        </button>
-                        <button :class="['nav-tab', { active: activeTab === 'settings' }]"
-                            @click="activeTab = 'settings'">
-                            <i class="fas fa-cog nav-icon"></i>
-                            <span class="nav-text">设置</span>
-                        </button>
-                    </div>
-                </nav>
+            <main class="platform-main">
+                <div class="platform-container">
+                    <div class="page-stack">
+                        <page-hero
+                            :title="pageHeader.title"
+                            :subtitle="pageHeader.subtitle"
+                            :actions="pageHeader.actions"
+                            @action="handleHeroAction"
+                        ></page-hero>
 
-                <!-- 主页内容 -->
-                <div v-if="activeTab === 'home'" class="tab-content home-tab">
-                    <!-- 顶部欢迎区域 -->
-                    <section class="welcome-section">
-                        <div class="welcome-content">
-                            <div class="welcome-text">
-                                <h1 class="welcome-title">行人重识别系统</h1>
-                                <p class="welcome-description">
-                                    基于Web的智能行人重识别系统，为您提供精准高效的行人识别服务
-                                </p>
-                                <div class="welcome-stats">
-                                    <div class="stat-item">
-                                        <div class="stat-icon">
-                                            <i class="fas fa-chart-line"></i>
+                        <section v-if="currentRoute === 'home'" class="page-stack">
+                            <div class="stats-grid-overview">
+                                <stat-card
+                                    v-for="metric in overviewStats"
+                                    :key="metric.key"
+                                    :title="metric.title"
+                                    :value="metric.value"
+                                    :unit="metric.unit"
+                                    :caption="metric.delta"
+                                    :icon="metric.icon"
+                                    :tone="metric.tone"
+                                ></stat-card>
+                            </div>
+
+                            <div class="content-grid">
+                                <div class="platform-card">
+                                    <div class="platform-card-header">
+                                        <div>
+                                            <h3>快捷入口</h3>
+                                            <p class="platform-card-subtitle">集中提供平台常用功能入口，便于快速进入重点业务模块。</p>
                                         </div>
-                                        <div class="stat-number">{{ usageCount }}</div>
-                                        <div class="stat-label">累计识别次数</div>
                                     </div>
-                                    <div class="stat-item">
-                                        <div class="stat-icon">
-                                            <i class="fas fa-clock"></i>
+                                    <div class="platform-card-body">
+                                        <div class="shortcut-grid">
+                                            <button
+                                                v-for="shortcut in overviewShortcuts"
+                                                :key="shortcut.route"
+                                                type="button"
+                                                class="shortcut-card"
+                                                @click="navigate(shortcut.route)"
+                                            >
+                                                <i :class="shortcut.icon"></i>
+                                                <h4>{{ shortcut.label }}</h4>
+                                                <p>{{ shortcut.description }}</p>
+                                            </button>
                                         </div>
-                                        <div class="stat-number">{{ formattedLastUsed }}</div>
-                                        <div class="stat-label">最近使用时间</div>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="welcome-actions">
-                                <button class="btn primary action-btn" @click="activeTab = 'recognition'">
-                                    <i class="fas fa-play-circle"></i>
-                                    开始识别
-                                </button>
-                                <button class="btn secondary action-btn" @click="activeTab = 'settings'">
-                                    <i class="fas fa-cog"></i>
-                                    系统设置
-                                </button>
-                            </div>
-                        </div>
-                    </section>
 
-                    <!-- 简单功能介绍 -->
-                    <section class="intro-section">
-                        <div class="intro-content">
-                            <h2 class="intro-title">系统简介</h2>
-                            <p class="intro-description">
-                                本系统采用yolov8数据集，能够对行人图像进行精准的特征提取和匹配识别。
-                                用户只需上传待识别的行人图片，系统即可快速返回最相似的匹配结果，为安防监控、
-                                人员管理等领域提供可靠的技术支持。
-                            </p>
-                            <div class="feature-highlights">
-                                <div class="highlight-item">
-                                    <i class="fas fa-camera highlight-icon"></i>
-                                    <span class="highlight-text">支持多种图片格式</span>
-                                </div>
-                                <div class="highlight-item">
-                                    <i class="fas fa-search highlight-icon"></i>
-                                    <span class="highlight-text">精准特征匹配</span>
-                                </div>
-                                <div class="highlight-item">
-                                    <i class="fas fa-bolt highlight-icon"></i>
-                                    <span class="highlight-text">快速处理响应</span>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-                </div>
-
-                <!-- 识别功能页面 -->
-                <div v-if="activeTab === 'recognition'" class="tab-content recognition-tab">
-                    <div class="recognition-section">
-                        <h2 class="recognition-title">行人重识别</h2>
-                        <p class="recognition-subtitle">上传一张行人图片，系统将返回最相似的匹配结果</p>
-
-                        <div class="upload-area" @click="triggerFileInput" @dragover.prevent @drop="handleDrop">
-                            <div class="upload-icon">
-                                <i class="fas fa-cloud-upload-alt"></i>
-                            </div>
-                            <p class="upload-text">点击或拖拽图片到此处上传</p>
-                            <p class="upload-hint">支持 JPG, PNG 格式，最大 5MB</p>
-                        </div>
-
-                        <input type="file" ref="fileInput" class="file-input" accept="image/*"
-                            @change="handleFileSelect">
-
-                        <div v-if="uploadedImage" class="image-results">
-                            <div class="image-pair">
-                                <div class="image-box">
-                                    <h4 class="image-title"><i class="fas fa-upload"></i> 上传的图片</h4>
-                                    <img :src="uploadedImage" alt="上传的图片" class="result-image">
-                                </div>
-                                <div class="image-box">
-                                    <h4 class="image-title"><i class="fas fa-search"></i> 匹配结果</h4>
-                                    <img v-if="matchedImage" :src="matchedImage" alt="匹配结果" class="result-image">
-                                    <div v-else class="processing-placeholder">
-                                        <i class="fas fa-spinner fa-spin processing-icon"></i>
-                                        <p>处理中...</p>
+                                <div class="platform-card">
+                                    <div class="platform-card-header">
+                                        <div>
+                                            <h3>系统状态摘要</h3>
+                                            <p class="platform-card-subtitle">集中展示检测服务、重识别服务、数据库与同步状态。</p>
+                                        </div>
                                     </div>
-                                </div>
-                                <div v-if="matchedInfo" class="match-details">
-                                    <div class="match-info-box">
-                                        <p><i class="fas fa-percentage"></i> 相似度: {{ matchedInfo.similarity }}</p>
-                                        <p><i class="fas fa-ruler"></i> 距离: {{ matchedInfo.distance }}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="action-buttons">
-                            <button @click="processImage" :disabled="!uploadedImage" class="btn primary process-btn">
-                                <i class="fas fa-play"></i>
-                                开始识别
-                            </button>
-                            <button @click="clearImages" class="btn secondary clear-btn">
-                                <i class="fas fa-trash"></i>
-                                清除图片
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 设置页面 -->
-                <div v-if="activeTab === 'settings'" class="tab-content settings-tab">
-                    <div class="settings-section">
-                        <h2 class="section-title"><i class="fas fa-cog"></i> 用户设置</h2>
-
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <h3><i class="fas fa-bell setting-icon"></i> 消息通知</h3>
-                                <p>接收识别完成的通知</p>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" v-model="settings.notifications">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <h3><i class="fas fa-save setting-icon"></i> 自动保存结果</h3>
-                                <p>自动保存识别历史记录</p>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" v-model="settings.autoSave">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="account-info">
-                        <h2 class="section-title"><i class="fas fa-user-circle"></i> 账户信息</h2>
-                        <div class="info-item">
-                            <span class="info-label"><i class="fas fa-user"></i> 用户名:</span>
-                            <span class="info-value">{{ currentUser }}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label"><i class="fas fa-calendar-alt"></i> 注册时间:</span>
-                            <span class="info-value">{{ formattedRegistrationDate }}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label"><i class="fas fa-clock"></i> 最后使用:</span>
-                            <span class="info-value">{{ formattedLastUsedForSettings }}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label"><i class="fas fa-chart-line"></i> 识别次数:</span>
-                            <span class="info-value">{{ usageCount }}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 管理员页面 -->
-                <div v-if="activeTab === 'admin' && isAdmin" class="tab-content admin-tab">
-                    <div v-if="adminLoading" class="admin-loading" style="text-align:center; padding:40px;">
-                        <i class="fas fa-spinner fa-spin" style="font-size:36px; color:#007bff;"></i>
-                        <p style="margin-top:10px; font-size:18px;">正在加载用户数据...</p>
-                    </div>
-
-                    <div v-else class="admin-section">
-                        <h2 class="section-title"><i class="fas fa-users-cog"></i> 用户管理</h2>
-                        
-                        <!-- 管理员欢迎信息 -->
-                        <div class="admin-welcome">
-                            <div class="welcome-content">
-                                <i class="fas fa-shield-alt welcome-icon"></i>
-                                <div class="welcome-text">
-                                    <h3>管理员控制台</h3>
-                                    <p>您可以在此管理所有用户账户和数据</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 统计卡片 -->
-                        <div class="admin-stats">
-                            <div class="stat-card">
-                                <i class="fas fa-users"></i>
-                                <div class="stat-number">{{ adminUsers.length }}</div>
-                                <div class="stat-label">总用户数</div>
-                            </div>
-                            <div class="stat-card">
-                                <i class="fas fa-chart-line"></i>
-                                <div class="stat-number">{{ totalUsageCount }}</div>
-                                <div class="stat-label">总识别次数</div>
-                            </div>
-                            <div class="stat-card">
-                                <i class="fas fa-user-clock"></i>
-                                <div class="stat-number">{{ activeUsersCount }}</div>
-                                <div class="stat-label">活跃用户</div>
-                            </div>
-                            <div class="stat-card">
-                                <i class="fas fa-calendar-day"></i>
-                                <div class="stat-number">{{ newUsersTodayCount }}</div>
-                                <div class="stat-label">今日新增</div>
-                            </div>
-                        </div>
-
-                        <!-- 操作工具栏 -->
-                        <div class="admin-toolbar">
-                            <div class="toolbar-left">
-                                <!-- 搜索框 -->
-                                <div class="search-box">
-                                    <div class="input-with-icon">
-                                        <i class="fas fa-search input-icon"></i>
-                                        <input type="text" v-model="adminSearchTerm" placeholder="搜索用户名、邮箱或ID...">
-                                    </div>
-                                </div>
-                                
-                                <!-- 筛选选项 -->
-                                <div class="filter-options">
-                                    <select v-model="adminFilter" class="filter-select">
-                                        <option value="all">所有用户</option>
-                                        <option value="active">活跃用户</option>
-                                        <option value="inactive">非活跃用户</option>
-                                        <option value="today">今日新增</option>
-                                    </select>
-                                </div>
-                            </div>
-            
-                            <div class="toolbar-right">
-                                <button @click="loadAdminUsers" class="btn primary" :disabled="adminLoading">
-                                    <i class="fas fa-sync-alt" :class="{ 'fa-spin': adminLoading }"></i>
-                                    {{ adminLoading ? '加载中...' : '刷新数据' }}
-                                </button>
-                                <button @click="exportUserData" class="btn secondary">
-                                    <i class="fas fa-download"></i>
-                                    导出数据
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- 加载状态 -->
-                        <div v-if="adminLoading && adminUsers.length === 0" class="loading-state">
-                            <i class="fas fa-spinner fa-spin"></i>
-                            <p>正在加载用户数据...</p>
-                        </div>
-
-                        <!-- 用户列表表格 -->
-                        <div v-if="!adminLoading || adminUsers.length > 0" class="users-table-container">
-                            <div class="table-responsive">
-                                <table class="users-table">
-                                    <thead>
-                                        <tr>
-                                            <th>ID</th>
-                                            <th>用户名</th>
-                                            <th>邮箱</th>
-                                            <th>识别次数</th>
-                                            <th>注册时间</th>
-                                            <th>最后登录</th>
-                                            <th>状态</th>
-                                            <th>操作</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr v-for="user in filteredUsers" :key="user.id" 
-                                            :class="{ 'active-user': isActiveUser(user) }">
-                                            <td class="user-id">{{ user.id }}</td>
-                                            <td class="username">
-                                                <i class="fas fa-user"></i>
-                                                {{ user.username }}
-                                            </td>
-                                            <td class="email">
-                                                <i class="fas fa-envelope"></i>
-                                                {{ user.email }}
-                                            </td>
-                                            <td class="usage-count">
-                                                <span class="count-badge" :class="getUsageLevel(user.usage_count)">
-                                                    {{ user.usage_count }}
-                                                </span>
-                                            </td>
-                                            <td class="registration-date">
-                                                <i class="fas fa-calendar-plus"></i>
-                                                {{ formatDate(user.registration_date) }}
-                                            </td>
-                                            <td class="last-used">
-                                                <i class="fas fa-clock"></i>
-                                                {{ formatLastUsed(user.last_used) }}
-                                            </td>
-                                            <td class="user-status">
-                                                <span class="status-badge" :class="getUserStatus(user)">
-                                                    <i :class="getStatusIcon(user)"></i>
-                                                    {{ getUserStatusText(user) }}
-                                                </span>
-                                            </td>
-                                            <td class="actions">
-                                                <div class="action-buttons">
-                                                    <button @click="editUser(user)" class="btn small primary" title="编辑用户">
-                                                        <i class="fas fa-edit"></i>
-                                                        编辑
-                                                    </button>
-                                                    <button @click="resetUserPassword(user.id, user.username)" 
-                                                            class="btn small secondary" title="重置密码">
-                                                        <i class="fas fa-key"></i>
-                                                        重置
-                                                    </button>
-                                                    <button @click="deleteUser(user.id, user.username)" 
-                                                            class="btn small danger" title="删除用户">
-                                                        <i class="fas fa-trash"></i>
-                                                        删除
-                                                    </button>
+                                    <div class="platform-card-body">
+                                        <div class="service-list">
+                                            <div v-for="service in systemStatus" :key="service.key" class="service-item">
+                                                <div>
+                                                    <strong>{{ service.label }}</strong>
+                                                    <span>{{ service.detail }}</span>
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                                                <span class="status-pill" :class="getServiceStatusClass(service.status)">
+                                                    <i :class="getServiceStatusIcon(service.status)"></i>
+                                                    {{ getServiceStatusText(service.status) }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-            
-                            <!-- 分页控件 -->
-                            <div v-if="filteredUsers.length > 10" class="pagination">
-                                <button @click="prevPage" :disabled="currentPage === 1" class="page-btn">
-                                    <i class="fas fa-chevron-left"></i>
-                                </button>
-                                <span class="page-info">第 {{ currentPage }} 页，共 {{ totalPages }} 页</span>
-                                <button @click="nextPage" :disabled="currentPage === totalPages" class="page-btn">
-                                    <i class="fas fa-chevron-right"></i>
-                                </button>
-                            </div>
-                        </div>
 
-                        <!-- 空状态 -->
-                        <div v-if="!adminLoading && filteredUsers.length === 0" class="empty-state">
-                            <i class="fas fa-users"></i>
-                            <p>暂无用户数据</p>
-                            <p class="subtext" v-if="adminSearchTerm">尝试调整搜索条件</p>
-                            <button @click="loadAdminUsers" class="btn primary">
-                                <i class="fas fa-redo"></i>
-                                重新加载
-                            </button>
-                        </div>
-
-                        <!-- 用户编辑模态框 -->
-                        <div v-if="showEditModal" class="modal-overlay">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h3><i class="fas fa-edit"></i> 编辑用户信息</h3>
-                                    <button @click="closeEditModal" class="modal-close">
-                                        <i class="fas fa-times"></i>
+                            <div class="platform-card">
+                                <div class="platform-card-header">
+                                    <div>
+                                        <h3>最近识别记录</h3>
+                                        <p class="platform-card-subtitle">展示近期识别结果摘要，便于快速查看状态与详情。</p>
+                                    </div>
+                                    <button type="button" class="ghost-btn" @click="navigate('history')">
+                                        <i class="fas fa-arrow-right"></i>
+                                        <span>查看全部</span>
                                     </button>
                                 </div>
-                                <div class="modal-body">
-                                    <div class="form-group">
-                                        <label>用户名</label>
-                                        <input type="text" v-model="editForm.username" class="form-input">
+                                <div class="platform-card-body">
+                                    <div v-if="isRealMode && recentRecordsLoading">
+                                        <loading-state icon="fas fa-spinner fa-spin" title="正在加载最近记录" description="系统正在读取近期识别记录。"></loading-state>
                                     </div>
-                                    <div class="form-group">
-                                        <label>邮箱</label>
-                                        <input type="email" v-model="editForm.email" class="form-input">
+                                    <div v-else-if="isRealMode && recentRecordsError">
+                                        <empty-state icon="fas fa-circle-exclamation" title="最近记录加载失败" :description="recentRecordsError"></empty-state>
                                     </div>
-                                    <div class="form-group">
-                                        <label>识别次数</label>
-                                        <input type="number" v-model="editForm.usage_count" class="form-input" min="0">
+                                    <div v-else-if="homeRecentRecords.length === 0">
+                                        <empty-state icon="fas fa-folder-open" title="最近记录为空" description="当前模式下还没有可展示的最近识别记录。"></empty-state>
                                     </div>
-                                    <div class="form-group">
-                                        <label>最后登录时间</label>
-                                        <input type="datetime-local" v-model="editForm.last_used" class="form-input">
+                                    <div v-else class="record-list">
+                                        <div v-for="record in homeRecentRecords" :key="record.id" class="record-item">
+                                            <div class="record-thumbs">
+                                                <div class="record-thumb">
+                                                    <safe-image :src="getRecordQueryImageUrl(record)" alt="查询图" text="查询图不可用"></safe-image>
+                                                </div>
+                                                <span class="record-arrow">
+                                                    <i class="fas fa-arrow-right"></i>
+                                                </span>
+                                                <div class="record-thumb">
+                                                    <safe-image :src="getRecordMatchImageUrl(record)" alt="匹配图" text="匹配图不可用"></safe-image>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <span class="status-pill" :class="getRecordStatusClass(record.status)">
+                                                    <i :class="getRecordStatusIcon(record.status)"></i>
+                                                    {{ getRecordStatusText(record.status) }}
+                                                </span>
+                                            </div>
+                                            <div class="record-meta">
+                                                <strong>{{ record.id }}</strong>
+                                                <div class="record-meta-list">
+                                                    <span><b>相似度</b> {{ record.similarity.toFixed(1) }}%</span>
+                                                    <span><b>摄像头</b> {{ record.camera }}</span>
+                                                    <span><b>位置</b> {{ record.location }}</span>
+                                                    <span><b>时间</b> {{ formatDate(record.time, true) }}</span>
+                                                    <span><b>保存状态</b> {{ getSaveStateText(record.saved) }}</span>
+                                                </div>
+                                            </div>
+                                            <button type="button" class="secondary-btn" @click="openHistoryDetail(record)">
+                                                <i class="fas fa-eye"></i>
+                                                <span>查看详情</span>
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button @click="closeEditModal" class="btn secondary">取消</button>
-                                    <button @click="saveUserEdit" class="btn primary">保存更改</button>
                                 </div>
                             </div>
-                        </div>
+                        </section>
 
-                        <!-- 管理员操作面板 -->
-                        <div class="admin-actions-panel">
-                            <h3><i class="fas fa-cogs"></i> 批量操作</h3>
-                            <div class="bulk-actions">
-                                <button @click="bulkResetPasswords" class="btn secondary">
-                                    <i class="fas fa-key"></i>
-                                    批量重置密码
-                                </button>
-                                <button @click="clearInactiveUsers" class="btn danger">
-                                    <i class="fas fa-trash"></i>
-                                    清理非活跃用户
-                                </button>
-                                <button @click="adminLogout" class="btn primary">
-                                    <i class="fas fa-sign-out-alt"></i>
-                                    退出管理
-                                </button>
+                        <section v-else-if="currentRoute === 'monitoring'" class="page-stack">
+                            <div class="stats-grid-four">
+                                <stat-card title="在线摄像头" :value="monitoringSummary.onlineCameras" :unit="'路'" :caption="'总计 ' + monitoringSummary.totalCameras + ' 路'" icon="fas fa-video" tone="success"></stat-card>
+                                <stat-card title="当前估计人数" :value="monitoringSummary.currentVisitors" unit="人" caption="景区实时估计" icon="fas fa-people-group" tone="primary"></stat-card>
+                                <stat-card title="今日预警数" :value="monitoringSummary.alertCount" unit="条" caption="重点区域实时推送" icon="fas fa-bell" tone="warning"></stat-card>
+                                <stat-card title="待处理重识别任务" :value="monitoringSummary.reidQueue" unit="个" caption="当前任务队列" icon="fas fa-layer-group" tone="info"></stat-card>
                             </div>
-                        </div>
+
+                            <div class="platform-card">
+                                <div class="platform-card-header">
+                                    <div>
+                                        <h3>摄像头宫格</h3>
+                                        <p class="platform-card-subtitle">集中展示重点摄像头在线状态、区域画面与当前人数信息。</p>
+                                    </div>
+                                </div>
+                                <div class="platform-card-body">
+                                    <div class="camera-grid">
+                                        <article v-for="camera in monitoringCameras" :key="camera.id" class="camera-card" :class="getCameraCardClass(camera)">
+                                            <div class="camera-frame">
+                                                <safe-image :src="getMockCropUrl(camera.poster)" alt="摄像头封面" text="摄像头封面不可用"></safe-image>
+                                                <div class="camera-badges">
+                                                    <span class="status-pill" :class="camera.online ? 'is-verified' : 'is-neutral'">
+                                                        <i :class="camera.online ? 'fas fa-signal' : 'fas fa-circle-stop'"></i>
+                                                        {{ camera.online ? '在线' : '离线' }}
+                                                    </span>
+                                                    <span class="status-pill" :class="getCameraLevelClass(camera.level)">
+                                                        <i :class="getCameraLevelIcon(camera.level)"></i>
+                                                        {{ getCameraLevelText(camera.level) }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div class="camera-body">
+                                                <div class="camera-title">
+                                                    <h4>{{ camera.name }}</h4>
+                                                    <strong>{{ camera.visitors }} 人</strong>
+                                                </div>
+                                                <p>{{ camera.zone }}</p>
+                                                <p>最后帧时间：{{ formatDate(camera.lastFrameAt, true) }}</p>
+                                            </div>
+                                        </article>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="placeholder-grid">
+                                <div class="placeholder-panel">
+                                    <div>
+                                        <h3>景区热区示意图</h3>
+                                        <p>将重点区域映射到景区平面示意区块，便于快速判断当前人流热度与处置优先级。</p>
+                                    </div>
+                                    <div class="monitoring-heatmap-layout">
+                                        <div class="heatmap-schematic">
+                                            <button
+                                                v-for="zone in monitoringHeatmapMap"
+                                                :key="zone.name"
+                                                type="button"
+                                                class="heatmap-region"
+                                                :class="['is-' + zone.tone, { 'is-active': selectedMonitoringZone && selectedMonitoringZone.name === zone.name }]"
+                                                :style="{ left: zone.x + '%', top: zone.y + '%', width: zone.w + '%', height: zone.h + '%' }"
+                                                @click="selectMonitoringZone(zone.name)"
+                                            >
+                                                <strong>{{ zone.shortName }}</strong>
+                                                <span>{{ zone.level }}%</span>
+                                            </button>
+                                        </div>
+                                        <div class="heatmap-sidecard" v-if="selectedMonitoringZone">
+                                            <div class="heatmap-sidecard-head">
+                                                <h4>{{ selectedMonitoringZone.name }}</h4>
+                                                <span class="status-pill" :class="'is-' + selectedMonitoringZone.tone">
+                                                    <i class="fas fa-fire-flame-curved"></i>
+                                                    {{ selectedMonitoringZone.statusLabel }}
+                                                </span>
+                                            </div>
+                                            <div class="detail-grid compact">
+                                                <div class="detail-item">
+                                                    <span>当前热度</span>
+                                                    <strong>{{ selectedMonitoringZone.level }}%</strong>
+                                                </div>
+                                                <div class="detail-item">
+                                                    <span>估计人数</span>
+                                                    <strong>{{ selectedMonitoringZone.visitors }} 人</strong>
+                                                </div>
+                                            </div>
+                                            <p class="heatmap-sidecard-note">{{ selectedMonitoringZone.detail }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="placeholder-panel">
+                                    <div>
+                                        <h3>时间轴回溯区</h3>
+                                        <p>按时段查看景区估计人数变化，辅助分析高峰客流与重点观察时段。</p>
+                                    </div>
+                                    <div class="timeline-shell">
+                                        <div class="timeline-ruler">
+                                            <button
+                                                v-for="point in monitoringTimelineModel.points"
+                                                :key="point.time"
+                                                type="button"
+                                                class="timeline-point"
+                                                :class="{ 'is-active': point.active }"
+                                                @click="selectMonitoringTimeline(point.index)"
+                                            >
+                                                <span class="timeline-dot"></span>
+                                                <span class="timeline-spark" :style="{ height: point.height + 'px' }"></span>
+                                                <strong>{{ point.time }}</strong>
+                                                <small>{{ point.visitors }} 人</small>
+                                            </button>
+                                        </div>
+                                        <div class="timeline-focus-card" v-if="monitoringTimelineModel.selected">
+                                            <div>
+                                                <span class="timeline-focus-label">当前回放时段</span>
+                                                <h4>{{ monitoringTimelineModel.selected.time }}</h4>
+                                            </div>
+                                            <div class="timeline-focus-metrics">
+                                                <div>
+                                                    <span>估计人数</span>
+                                                    <strong>{{ monitoringTimelineModel.selected.visitors }} 人</strong>
+                                                </div>
+                                                <div>
+                                                    <span>负载等级</span>
+                                                    <strong>{{ monitoringTimelineModel.selected.loadLabel }}</strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section v-else-if="currentRoute === 'statistics'" class="page-stack">
+                            <div class="stats-grid-four">
+                                <stat-card title="总人数统计" :value="statisticsSummary.totalVisitors" unit="人" caption="今日累计入园估算" icon="fas fa-chart-line" tone="primary"></stat-card>
+                                <stat-card title="今日重识别数" :value="statisticsSummary.todayReidCount" unit="次" caption="重点目标检索次数" icon="fas fa-user-check" tone="success"></stat-card>
+                                <stat-card title="今日预警数" :value="statisticsSummary.todayAlertCount" unit="条" caption="触发重点规则的记录" icon="fas fa-shield-halved" tone="warning"></stat-card>
+                                <stat-card title="峰值承载率" :value="statisticsSummary.peakLoad" unit="%" caption="高峰时段容量压力" icon="fas fa-gauge-high" tone="info"></stat-card>
+                            </div>
+
+                            <div class="chart-grid">
+                                <div class="placeholder-panel">
+                                    <div>
+                                        <h3>人流趋势图</h3>
+                                        <p>集中展示各时段检测量与重识别量变化，便于观察客流规模与识别任务趋势。</p>
+                                    </div>
+                                    <div class="trend-chart">
+                                        <div v-for="item in statisticsTrendBars" :key="item.label" class="trend-column">
+                                            <div class="trend-bars">
+                                                <span class="trend-bar" :style="{ height: item.detectionHeight }"></span>
+                                                <span class="trend-bar is-secondary" :style="{ height: item.reidHeight }"></span>
+                                            </div>
+                                            <label>{{ item.label }}</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="placeholder-panel">
+                                    <div>
+                                        <h3>区域人流统计图</h3>
+                                        <p>按重点区域汇总人数与容量占用，直观反映区域负载情况。</p>
+                                    </div>
+                                    <div class="zone-list">
+                                        <div v-for="zone in statisticsZones" :key="zone.name" class="zone-item">
+                                            <strong>{{ zone.name }}</strong>
+                                            <div class="heatmap-bar">
+                                                <span :style="{ width: getZonePercent(zone) }"></span>
+                                            </div>
+                                            <span>{{ zone.visitors }} / {{ zone.capacity }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="platform-card">
+                                <div class="platform-card-header">
+                                    <div>
+                                        <h3>承载量概览</h3>
+                                        <p class="platform-card-subtitle">展示容量阈值、峰值和变化趋势，辅助研判承载压力。</p>
+                                    </div>
+                                </div>
+                                <div class="platform-card-body">
+                                    <div class="capacity-card">
+                                        <div class="capacity-stat">
+                                            <strong>{{ statisticsCapacity.currentVisitors }}</strong>
+                                            <span>当前估计人数</span>
+                                        </div>
+                                        <div class="capacity-bar-track">
+                                            <span class="capacity-bar-fill" :style="{ width: getCapacityPercent() }"></span>
+                                        </div>
+                                        <div class="capacity-thresholds">
+                                            <span>安全承载量：{{ statisticsCapacity.safeCapacity }} 人</span>
+                                            <span>预警阈值：{{ statisticsCapacity.warningCapacity }} 人</span>
+                                            <span>高峰峰值：{{ statisticsCapacity.peakVisitors }} 人</span>
+                                            <span>{{ statisticsCapacity.forecast }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="chart-grid">
+                                <div class="platform-card">
+                                    <div class="platform-card-header">
+                                        <div>
+                                            <h3>分析结论</h3>
+                                            <p class="platform-card-subtitle">结合客流规模、区域分布和容量状态输出分析结论。</p>
+                                        </div>
+                                    </div>
+                                    <div class="platform-card-body">
+                                        <div class="insight-grid">
+                                            <article v-for="item in statisticsInsights" :key="item.title" class="insight-card">
+                                                <span class="insight-card-label">分析结论</span>
+                                                <h4>{{ item.title }}</h4>
+                                                <p>{{ item.detail }}</p>
+                                            </article>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="platform-card">
+                                    <div class="platform-card-header">
+                                        <div>
+                                            <h3>系统建议</h3>
+                                            <p class="platform-card-subtitle">结合当前容量压力与重点区域状态，输出值守建议与联动动作</p>
+                                        </div>
+                                    </div>
+                                    <div class="platform-card-body">
+                                        <div class="advice-list">
+                                            <article v-for="item in statisticsRecommendations" :key="item.title" class="advice-card">
+                                                <div class="advice-card-mark">
+                                                    <i class="fas fa-lightbulb"></i>
+                                                </div>
+                                                <div>
+                                                    <h4>{{ item.title }}</h4>
+                                                    <p>{{ item.detail }}</p>
+                                                </div>
+                                            </article>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section v-else-if="currentRoute === 'reid'" class="page-stack">
+                            <div class="reid-workbench-mixed">
+                                <div class="reid-main-grid">
+                                    <div class="reid-left-panel page-stack">
+                                        <div class="platform-card">
+                                            <div class="platform-card-header">
+                                                <div>
+                                                    <h3>输入与参数区</h3>
+                                                    <p class="platform-card-subtitle">支持查询图片上传、目标源选择、参数配置与识别任务发起。</p>
+                                                </div>
+                                            </div>
+                                            <div class="platform-card-body reid-section-stack">
+                                                <section class="reid-block">
+                                                    <div class="reid-block-head">
+                                                        <h4>查询图上传</h4>
+                                                        <button type="button" class="platform-link-btn reid-inline-btn" @click="loadSampleQuery">
+                                                            <i class="fas fa-image"></i>
+                                                            <span>载入示例</span>
+                                                        </button>
+                                                    </div>
+                                                    <div class="upload-dropzone" @click="triggerFileInput" @dragover.prevent @drop="handleDrop">
+                                                        <div class="page-stack">
+                                                            <i class="fas fa-cloud-arrow-up"></i>
+                                                            <p>点击或拖拽图片到此处</p>
+                                                            <small>支持 JPG、PNG、WEBP，单图不超过 5MB</small>
+                                                        </div>
+                                                    </div>
+                                                    <input ref="fileInput" type="file" class="file-input" accept="image/*" @change="handleFileSelect">
+
+                                                    <div v-if="reidHasQueryImage" class="reid-query-panel">
+                                                        <div class="query-thumb">
+                                                            <safe-image :src="reidState.queryImage.url" alt="查询图预览" text="查询图不可用"></safe-image>
+                                                        </div>
+                                                        <div class="query-meta">
+                                                            <div class="query-meta-item">
+                                                                <span>文件名</span>
+                                                                <strong>{{ reidState.queryImage.name }}</strong>
+                                                            </div>
+                                                            <div class="query-meta-item">
+                                                                <span>文件大小</span>
+                                                                <strong>{{ reidState.queryImage.sizeText }}</strong>
+                                                            </div>
+                                                            <div class="query-meta-item">
+                                                                <span>图片尺寸</span>
+                                                                <strong>{{ reidState.queryImage.width && reidState.queryImage.height ? (reidState.queryImage.width + ' × ' + reidState.queryImage.height) : '待识别' }}</strong>
+                                                            </div>
+                                                            <div class="query-meta-item">
+                                                                <span>上传时间</span>
+                                                                <strong>{{ formatDate(reidState.queryImage.uploadedAt, true) }}</strong>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <empty-state v-else icon="fas fa-image" title="等待上传查询图" description="请先上传查询图片，或点击“载入示例”快速开始识别任务。"></empty-state>
+                                                </section>
+
+                                                <section class="reid-block">
+                                                    <div class="reid-block-head">
+                                                        <h4>目标源选择</h4>
+                                                    </div>
+                                                    <div class="source-option-group">
+                                                        <label v-for="source in reidState.sourceOptions" :key="source.value" class="source-option" :class="{ 'is-active': reidState.selectedSourceType === source.value }">
+                                                            <input type="radio" name="sourceType" :value="source.value" v-model="reidState.selectedSourceType" @change="handleSourceChange">
+                                                            <div>
+                                                                <strong>{{ source.label }}</strong>
+                                                                <span>{{ source.description }}</span>
+                                                            </div>
+                                                        </label>
+                                                    </div>
+                                                </section>
+
+                                                <section class="reid-block">
+                                                    <div class="reid-block-head">
+                                                        <h4>参数设置区</h4>
+                                                        <button type="button" class="ghost-btn reid-inline-btn" @click="resetReidParams">
+                                                            <i class="fas fa-rotate-left"></i>
+                                                            <span>恢复默认参数</span>
+                                                        </button>
+                                                    </div>
+                                                    <div class="param-stack">
+                                                        <div class="param-item">
+                                                            <div class="param-label">
+                                                                <span>置信度阈值</span>
+                                                                <strong>{{ reidState.params.confThreshold.toFixed(2) }}</strong>
+                                                            </div>
+                                                            <input v-model.number="reidState.params.confThreshold" type="range" min="0.10" max="1" step="0.01" class="param-slider">
+                                                        </div>
+                                                        <div class="param-item">
+                                                            <div class="param-label">
+                                                                <span>IOU / NMS 阈值</span>
+                                                                <strong>{{ reidState.params.iouThreshold.toFixed(2) }}</strong>
+                                                            </div>
+                                                            <input v-model.number="reidState.params.iouThreshold" type="range" min="0.10" max="1" step="0.01" class="param-slider">
+                                                        </div>
+                                                        <div class="param-item">
+                                                            <div class="param-label">
+                                                                <span>相似度阈值</span>
+                                                                <strong>{{ reidState.params.similarityThreshold.toFixed(2) }}</strong>
+                                                            </div>
+                                                            <input v-model.number="reidState.params.similarityThreshold" type="range" min="0.50" max="1" step="0.01" class="param-slider">
+                                                        </div>
+                                                        <div class="param-item">
+                                                            <div class="param-label">
+                                                                <span>Top-K 返回数量</span>
+                                                                <strong>{{ reidState.params.topK }}</strong>
+                                                            </div>
+                                                            <input v-model.number="reidState.params.topK" type="range" min="1" max="10" step="1" class="param-slider">
+                                                        </div>
+                                                        <div class="setting-row compact">
+                                                            <div>
+                                                                <h4>自动保存结果</h4>
+                                                                <p>开启后命中结果将同步写入首页最近记录和历史记录。</p>
+                                                            </div>
+                                                            <label class="toggle-switch">
+                                                                <input type="checkbox" v-model="reidState.params.autoSaveResult">
+                                                                <span class="toggle-slider"></span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </section>
+
+                                                <section class="reid-block">
+                                                    <div class="reid-block-head">
+                                                        <h4>操作按钮</h4>
+                                                    </div>
+                                                    <div class="action-buttons">
+                                                        <button type="button" class="primary-btn" @click="startReidTask" :disabled="!reidCanStart">
+                                                            <i :class="reidState.isProcessing ? 'fas fa-spinner fa-spin' : 'fas fa-user-check'"></i>
+                                                            <span>{{ reidState.isProcessing ? '识别中...' : '开始识别' }}</span>
+                                                        </button>
+                                                        <button type="button" class="secondary-btn" @click="clearReidWorkspace">
+                                                            <i class="fas fa-trash"></i>
+                                                            <span>清空输入</span>
+                                                        </button>
+                                                        <button type="button" class="ghost-btn" @click="resetReidParams">
+                                                            <i class="fas fa-rotate-left"></i>
+                                                            <span>重置参数</span>
+                                                        </button>
+                                                    </div>
+                                                </section>
+                                            </div>
+                                        </div>
+
+                                        <div class="platform-card">
+                                            <div class="platform-card-header">
+                                                <div>
+                                                    <h3>识别过程区</h3>
+                                                    <p class="platform-card-subtitle">通过状态、进度、当前帧、摘要和日志形成完整过程反馈。</p>
+                                                </div>
+                                            </div>
+                                            <div class="platform-card-body reid-section-stack">
+                                                <section class="reid-block">
+                                                    <div class="reid-block-head">
+                                                        <h4>当前任务状态</h4>
+                                                        <span class="status-pill" :class="getTaskStatusClass(reidState.queryTask.status)">
+                                                            <i :class="getTaskStatusIcon(reidState.queryTask.status)"></i>
+                                                            {{ getTaskStatusText(reidState.queryTask.status) }}
+                                                        </span>
+                                                    </div>
+                                                    <div class="detail-grid">
+                                                        <div class="detail-item">
+                                                            <span>任务编号</span>
+                                                            <strong>{{ reidState.queryTask.id || '等待创建' }}</strong>
+                                                        </div>
+                                                        <div class="detail-item">
+                                                            <span>当前目标源</span>
+                                                            <strong>{{ reidState.queryTask.sourceName || selectedReidSource.label }}</strong>
+                                                        </div>
+                                                        <div class="detail-item">
+                                                            <span>开始时间</span>
+                                                            <strong>{{ reidState.queryTask.startedAt ? formatDate(reidState.queryTask.startedAt, true) : '未开始' }}</strong>
+                                                        </div>
+                                                        <div class="detail-item">
+                                                            <span>已耗时</span>
+                                                            <strong>{{ reidElapsedText }}</strong>
+                                                        </div>
+                                                    </div>
+                                                </section>
+
+                                                <section class="reid-block">
+                                                    <div class="reid-block-head">
+                                                        <h4>任务进度</h4>
+                                                        <strong>{{ reidState.progress.progress }}%</strong>
+                                                    </div>
+                                                    <div class="progress-track">
+                                                        <span class="progress-bar" :style="{ width: reidState.progress.progress + '%' }"></span>
+                                                    </div>
+                                                </section>
+
+                                                <section class="reid-block">
+                                                    <div class="reid-process-grid">
+                                                        <div>
+                                                            <div class="reid-block-head">
+                                                                <h4>当前处理帧</h4>
+                                                                <span>{{ getFrameTimestampText(reidState.currentFrame) }}</span>
+                                                            </div>
+                                                            <div class="process-frame">
+                                                                <safe-image :src="getFrameImageUrl(reidState.currentFrame)" alt="当前处理帧" text="等待处理帧"></safe-image>
+                                                            </div>
+                                                            <p class="frame-caption">{{ reidState.currentFrame.title || '当前处理帧' }} · {{ reidState.currentFrame.caption || '任务开始后展示关键抽帧' }}</p>
+                                                        </div>
+                                                        <div>
+                                                            <div class="reid-block-head">
+                                                                <h4>识别过程摘要</h4>
+                                                            </div>
+                                                            <div class="stats-grid-three process-summary-grid">
+                                                                <div class="process-stat">
+                                                                    <span>检测到候选人数</span>
+                                                                    <strong>{{ reidState.progress.detectedCandidates }}</strong>
+                                                                </div>
+                                                                <div class="process-stat">
+                                                                    <span>当前匹配候选数</span>
+                                                                    <strong>{{ reidState.progress.matchedCandidates }}</strong>
+                                                                </div>
+                                                                <div class="process-stat">
+                                                                    <span>已返回结果数</span>
+                                                                    <strong>{{ reidState.progress.finishedResults }}</strong>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </section>
+
+                                                <section class="reid-block">
+                                                    <div class="reid-block-head">
+                                                        <h4>日志滚动区</h4>
+                                                    </div>
+                                                    <div ref="reidLogContainer" class="reid-log-panel">
+                                                        <div v-for="log in reidState.logs" :key="log.time + log.message" class="reid-log-item">
+                                                            <span class="reid-log-time">{{ formatDate(log.time, true) }}</span>
+                                                            <span class="reid-log-level" :class="getLogLevelClass(log.level)">{{ log.level }}</span>
+                                                            <p>{{ log.message }}</p>
+                                                        </div>
+                                                    </div>
+                                                </section>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="reid-right-panel page-stack">
+                                        <div class="platform-card">
+                                            <div class="platform-card-header">
+                                                <div>
+                                                    <h3>查询图与结果列表</h3>
+                                                    <p class="platform-card-subtitle">保持查询图、Top-K 列表与当前选中详情同屏展示，方便快速复核。</p>
+                                                </div>
+                                            </div>
+                                            <div class="platform-card-body reid-section-stack">
+                                                <section class="reid-block">
+                                                    <div class="reid-block-head">
+                                                        <h4>查询图卡片</h4>
+                                                    </div>
+                                                    <div class="query-summary-card">
+                                                        <div class="query-summary-thumb">
+                                                            <safe-image :src="reidState.queryImage.url" alt="查询图" text="等待查询图"></safe-image>
+                                                        </div>
+                                                        <div class="query-summary-meta">
+                                                            <strong>{{ reidState.queryImage.name || '未导入查询图' }}</strong>
+                                                            <span>上传时间：{{ reidState.queryImage.uploadedAt ? formatDate(reidState.queryImage.uploadedAt, true) : '未上传' }}</span>
+                                                            <span>当前目标源：{{ selectedReidSource.label }}</span>
+                                                            <span>参数摘要：{{ getCurrentReidParamsSummary().join(' / ') }}</span>
+                                                        </div>
+                                                    </div>
+                                                </section>
+
+                                                <section class="reid-block">
+                                                    <div class="reid-block-head">
+                                                        <h4>Top-K 匹配结果</h4>
+                                                        <span>{{ reidState.results.length }} 条</span>
+                                                    </div>
+                                                    <div v-if="reidState.results.length === 0">
+                                                        <empty-state icon="fas fa-magnifying-glass" title="等待生成匹配结果" description="点击“开始识别”后，这里将展示 Top-K 匹配结果。"></empty-state>
+                                                    </div>
+                                                    <div v-else class="reid-result-list reid-result-list-enhanced">
+                                                        <button type="button" v-for="result in reidState.results" :key="result.id" class="reid-result-item reid-result-card" :class="{ 'is-active': reidSelectedResult && reidSelectedResult.id === result.id }" @click="selectReidResult(result)">
+                                                            <div class="reid-result-card-head">
+                                                                <div class="reid-result-rank">TOP {{ result.rank }}</div>
+                                                                <span class="status-pill" :class="getRecordStatusClass(result.status)">
+                                                                    <i :class="getRecordStatusIcon(result.status)"></i>
+                                                                    {{ getRecordStatusText(result.status) }}
+                                                                </span>
+                                                            </div>
+                                                            <div class="reid-result-card-body">
+                                                                <div class="reid-result-thumb">
+                                                                    <safe-image :src="getResultMatchImageUrl(result)" alt="匹配图" text="匹配图不可用"></safe-image>
+                                                                </div>
+                                                                <div class="reid-result-meta">
+                                                                    <div class="reid-result-line">
+                                                                        <strong>{{ result.cameraName }}</strong>
+                                                                        <span>{{ result.similarity.toFixed(1) }}%</span>
+                                                                    </div>
+                                                                    <div class="reid-result-info">
+                                                                        <span>{{ result.location }}</span>
+                                                                        <span>{{ formatDate(result.captureTime, true) }}</span>
+                                                                    </div>
+                                                                    <div class="reid-result-tags">
+                                                                        <span class="status-pill" :class="getSaveStateClass(result.saved)">
+                                                                            <i :class="result.saved ? 'fas fa-floppy-disk' : 'fas fa-eye'"></i>
+                                                                            {{ getSaveStateText(result.saved) }}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </button>
+                                                    </div>
+                                                </section>
+
+                                                <section class="reid-block">
+                                                    <div class="reid-block-head">
+                                                        <h4>当前选中结果详情</h4>
+                                                    </div>
+                                                    <div v-if="!reidSelectedResult">
+                                                        <empty-state icon="fas fa-clapperboard" title="等待结果详情" description="先完成一次识别，或从 Top-K 列表中选择某条命中结果。"></empty-state>
+                                                    </div>
+                                                    <template v-else>
+                                                        <div class="detail-gallery">
+                                                            <figure>
+                                                                <div class="detail-image-frame">
+                                                                    <safe-image :src="reidState.queryImage.url" alt="查询图" text="查询图不可用"></safe-image>
+                                                                </div>
+                                                                <figcaption>查询图</figcaption>
+                                                            </figure>
+                                                            <figure>
+                                                                <div class="detail-image-frame">
+                                                                    <safe-image :src="getResultMatchImageUrl(reidSelectedResult)" alt="匹配图" text="匹配图不可用"></safe-image>
+                                                                </div>
+                                                                <figcaption>匹配图</figcaption>
+                                                            </figure>
+                                                        </div>
+                                                        <div class="detail-grid">
+                                                            <div class="detail-item">
+                                                                <span>相似度</span>
+                                                                <strong>{{ reidSelectedResult.similarity.toFixed(1) }}%</strong>
+                                                            </div>
+                                                            <div class="detail-item">
+                                                                <span>摄像头名称</span>
+                                                                <strong>{{ reidSelectedResult.cameraName }}</strong>
+                                                            </div>
+                                                            <div class="detail-item">
+                                                                <span>地点</span>
+                                                                <strong>{{ reidSelectedResult.location }}</strong>
+                                                            </div>
+                                                            <div class="detail-item">
+                                                                <span>抓拍时间</span>
+                                                                <strong>{{ formatDate(reidSelectedResult.captureTime, true) }}</strong>
+                                                            </div>
+                                                            <div class="detail-item">
+                                                                <span>是否超过阈值</span>
+                                                                <strong>{{ getThresholdStateText(reidSelectedResult) }}</strong>
+                                                            </div>
+                                                            <div class="detail-item">
+                                                                <span>是否已保存</span>
+                                                                <strong>{{ getSaveStateText(reidSelectedResult.saved) }}</strong>
+                                                            </div>
+                                                            <div class="detail-item">
+                                                                <span>状态标签</span>
+                                                                <strong>{{ getRecordStatusText(reidSelectedResult.status) }}</strong>
+                                                            </div>
+                                                            <div class="detail-item detail-item-full">
+                                                                <span>使用参数摘要</span>
+                                                                <strong>{{ getSelectedResultParamsSummary().join(' / ') }}</strong>
+                                                            </div>
+                                                            <div class="detail-item detail-item-full">
+                                                                <span>说明</span>
+                                                                <strong>{{ reidSelectedResultNarrative }}</strong>
+                                                            </div>
+                                                            <div class="detail-item detail-item-full">
+                                                                <span>备注</span>
+                                                                <strong>{{ reidSelectedResult.note }}</strong>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+                                                </section>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="reid-bottom-grid">
+                                    <div class="platform-card">
+                                        <div class="platform-card-header">
+                                            <div>
+                                                <h3>{{ reidState.resultVideo.title }}</h3>
+                                                <p class="platform-card-subtitle">展示识别任务关联视频片段与关键画面信息。</p>
+                                            </div>
+                                        </div>
+                                        <div class="platform-card-body">
+                                            <div class="video-placeholder">
+                                                <div class="video-placeholder-screen">
+                                                    <i class="fas fa-film"></i>
+                                                    <strong>{{ reidState.resultVideo.clipName }}</strong>
+                                                    <span>{{ reidState.resultVideo.duration }}</span>
+                                                </div>
+                                                <p>{{ reidState.resultVideo.description }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="platform-card">
+                                        <div class="platform-card-header">
+                                            <div>
+                                                <h3>轨迹展示区</h3>
+                                                <p class="platform-card-subtitle">用简易景区示意图表达最近出现点位、路径连线与当前停留位置。</p>
+                                            </div>
+                                        </div>
+                                        <div class="platform-card-body">
+                                            <div v-if="reidState.trajectory.length === 0">
+                                                <empty-state icon="fas fa-route" title="等待生成轨迹" description="完成识别并选择结果后，这里会展示点位节点、连线路径和当前高亮位置。"></empty-state>
+                                            </div>
+                                            <div v-else class="trajectory-map-shell">
+                                                <div class="trajectory-map">
+                                                    <div
+                                                        v-for="region in reidTrajectoryMap.regions"
+                                                        :key="region.name"
+                                                        class="trajectory-region"
+                                                        :style="{ left: region.x + '%', top: region.y + '%', width: region.w + '%', height: region.h + '%' }"
+                                                    >
+                                                        {{ region.shortName }}
+                                                    </div>
+                                                    <svg class="trajectory-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                                                        <path :d="reidTrajectoryMap.pathData"></path>
+                                                    </svg>
+                                                    <div
+                                                        v-for="node in reidTrajectoryMap.nodes"
+                                                        :key="node.seq + node.timestamp"
+                                                        class="trajectory-node"
+                                                        :class="{ 'is-current': node.current }"
+                                                        :style="{ left: node.x + '%', top: node.y + '%' }"
+                                                        :title="node.cameraName + ' · ' + formatDate(node.timestamp, true)"
+                                                    >
+                                                        {{ node.seq }}
+                                                    </div>
+                                                </div>
+                                                <div class="trajectory-legend">
+                                                    <div v-for="node in reidState.trajectory" :key="node.seq + node.timestamp" class="trajectory-item">
+                                                        <div class="trajectory-seq">#{{ node.seq }}</div>
+                                                        <div class="trajectory-meta">
+                                                            <strong>{{ node.cameraName }}</strong>
+                                                            <span>{{ node.location }}</span>
+                                                        </div>
+                                                        <time>{{ formatDate(node.timestamp, true) }}</time>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="platform-card">
+                                    <div class="platform-card-header">
+                                        <div>
+                                            <h3>功能说明</h3>
+                                            <p class="platform-card-subtitle">说明当前工作台支持的识别流程、结果展示与轨迹分析能力。</p>
+                                        </div>
+                                    </div>
+                                    <div class="platform-card-body">
+                                        <div class="info-note-list">
+                                            <div v-for="hint in reidState.hints" :key="hint" class="info-note">{{ hint }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section v-else-if="currentRoute === 'history'" class="page-stack">
+                            <div class="platform-card">
+                                <div class="platform-card-header">
+                                    <div>
+                                        <h3>筛选区</h3>
+                                        <p class="platform-card-subtitle">支持按编号、摄像头、地点和状态筛选历史记录。</p>
+                                    </div>
+                                </div>
+                                <div class="platform-card-body">
+                                    <div class="filters-bar">
+                                        <input class="platform-input" v-model.trim="historyFilters.search" type="text" placeholder="搜索记录编号、摄像头或地点">
+                                        <select class="platform-select" v-model="historyFilters.camera">
+                                            <option v-for="camera in historyFilterOptions.cameras" :key="camera" :value="camera">{{ camera }}</option>
+                                        </select>
+                                        <select class="platform-select" v-model="historyFilters.location">
+                                            <option v-for="location in historyFilterOptions.locations" :key="location" :value="location">{{ location }}</option>
+                                        </select>
+                                        <select class="platform-select" v-model="historyFilters.status">
+                                            <option value="全部">全部状态</option>
+                                            <option value="verified">已核验</option>
+                                            <option value="review">待复核</option>
+                                            <option value="alert">预警</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="platform-card">
+                                <div class="platform-card-header">
+                                    <div>
+                                        <h3>识别记录表格</h3>
+                                        <p class="platform-card-subtitle">共 {{ filteredHistoryRecords.length }} 条记录，可查看详情、参数摘要与轨迹信息。</p>
+                                    </div>
+                                </div>
+                                <div class="platform-card-body">
+                                    <div v-if="isRealMode && historyLoading">
+                                        <loading-state icon="fas fa-spinner fa-spin" title="正在加载历史记录" description="系统正在根据筛选条件读取历史记录。"></loading-state>
+                                    </div>
+                                    <div v-else-if="isRealMode && historyError">
+                                        <empty-state icon="fas fa-circle-exclamation" title="历史记录加载失败" :description="historyError"></empty-state>
+                                    </div>
+                                    <div v-else-if="filteredHistoryRecords.length === 0">
+                                        <empty-state icon="fas fa-folder-open" title="当前筛选条件下没有记录" description="试试放宽摄像头、地点或状态条件。"></empty-state>
+                                    </div>
+                                    <div v-else class="platform-table-wrap">
+                                        <table class="platform-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>记录编号</th>
+                                                    <th>查询图</th>
+                                                    <th>匹配图</th>
+                                                    <th>相似度</th>
+                                                    <th>摄像头</th>
+                                                    <th>地点</th>
+                                                    <th>时间</th>
+                                                    <th>状态</th>
+                                                    <th>操作</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr v-for="record in filteredHistoryRecords" :key="record.id">
+                                                    <td>{{ record.id }}</td>
+                                                    <td>
+                                                        <div class="thumb-cell">
+                                                            <safe-image :src="getRecordQueryImageUrl(record)" alt="查询图" text="查询图不可用"></safe-image>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="thumb-cell">
+                                                            <safe-image :src="getRecordMatchImageUrl(record)" alt="匹配图" text="匹配图不可用"></safe-image>
+                                                        </div>
+                                                    </td>
+                                                    <td>{{ record.similarity.toFixed(1) }}%</td>
+                                                    <td>{{ record.camera }}</td>
+                                                    <td>{{ record.location }}</td>
+                                                    <td>{{ formatDate(record.time, true) }}</td>
+                                                    <td>
+                                                        <span class="status-pill" :class="getRecordStatusClass(record.status)">
+                                                            <i :class="getRecordStatusIcon(record.status)"></i>
+                                                            {{ getRecordStatusText(record.status) }}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <div class="table-actions">
+                                                            <button type="button" class="secondary-btn" @click="openHistoryDetail(record)">
+                                                                <i class="fas fa-eye"></i>
+                                                                <span>查看详情</span>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section v-else-if="currentRoute === 'settings'" class="page-stack">
+                            <div class="settings-grid">
+                                <div class="page-stack">
+                                    <div class="platform-card">
+                                        <div class="platform-card-header">
+                                            <div>
+                                                <h3>用户偏好设置</h3>
+                                                <p class="platform-card-subtitle">统一管理通知、结果保存与平台使用偏好。</p>
+                                            </div>
+                                        </div>
+                                        <div class="platform-card-body">
+                                            <div class="setting-group">
+                                                <div class="setting-row">
+                                                    <div>
+                                                        <h4>消息通知</h4>
+                                                        <p>接收识别完成、服务异常和重点预警的统一提示。</p>
+                                                    </div>
+                                                    <label class="toggle-switch">
+                                                        <input type="checkbox" v-model="settings.notifications">
+                                                        <span class="toggle-slider"></span>
+                                                    </label>
+                                                </div>
+                                                <div class="setting-row">
+                                                    <div>
+                                                        <h4>自动保存结果</h4>
+                                                        <p>自动将识别结果写入首页最近记录和历史记录。</p>
+                                                    </div>
+                                                    <label class="toggle-switch">
+                                                        <input type="checkbox" v-model="settings.autoSave">
+                                                        <span class="toggle-slider"></span>
+                                                    </label>
+                                                </div>
+                                                <div class="setting-row">
+                                                    <div>
+                                                        <h4>声音提醒</h4>
+                                                        <p>用于命中高相似度结果或预警状态时的声音提示。</p>
+                                                    </div>
+                                                    <label class="toggle-switch">
+                                                        <input type="checkbox" v-model="settings.soundAlerts">
+                                                        <span class="toggle-slider"></span>
+                                                    </label>
+                                                </div>
+                                                <div class="setting-row">
+                                                    <div>
+                                                        <h4>默认主题</h4>
+                                                        <p>用于切换平台界面主题风格。</p>
+                                                    </div>
+                                                    <select class="platform-select setting-select" v-model="settings.theme">
+                                                        <option value="system-blue">平台蓝灰</option>
+                                                        <option value="platform-light">浅灰工作台</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="platform-card">
+                                        <div class="platform-card-header">
+                                            <div>
+                                                <h3>默认参数设置</h3>
+                                                <p class="platform-card-subtitle">保存后会同步到行人重识别页，作为新的默认参数与默认目标源</p>
+                                            </div>
+                                            <div class="action-buttons">
+                                                <button type="button" class="ghost-btn" @click="restoreDefaultSettings">
+                                                    <i class="fas fa-rotate-left"></i>
+                                                    <span>恢复默认参数</span>
+                                                </button>
+                                                <button type="button" class="primary-btn" @click="saveSettings">
+                                                    <i class="fas fa-floppy-disk"></i>
+                                                    <span>保存设置</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="platform-card-body">
+                                            <p class="settings-note">当前默认参数会影响行人重识别页的初始值，包括阈值、Top-K 和默认目标源。</p>
+                                            <div class="setting-form-grid expanded">
+                                                <div class="field-stack">
+                                                    <label for="confidence">默认置信度阈值</label>
+                                                    <input id="confidence" class="platform-number" v-model.number="settings.defaults.confidence" type="number" min="0" max="1" step="0.01">
+                                                </div>
+                                                <div class="field-stack">
+                                                    <label for="iou">默认 IOU / NMS 阈值</label>
+                                                    <input id="iou" class="platform-number" v-model.number="settings.defaults.iou" type="number" min="0" max="1" step="0.01">
+                                                </div>
+                                                <div class="field-stack">
+                                                    <label for="similarity">默认相似度阈值</label>
+                                                    <input id="similarity" class="platform-number" v-model.number="settings.defaults.similarity" type="number" min="0" max="1" step="0.01">
+                                                </div>
+                                                <div class="field-stack">
+                                                    <label for="topk">默认 Top-K</label>
+                                                    <input id="topk" class="platform-number" v-model.number="settings.defaults.topK" type="number" min="1" max="20" step="1">
+                                                </div>
+                                                <div class="field-stack">
+                                                    <label for="sourceType">默认目标源</label>
+                                                    <select id="sourceType" class="platform-select" v-model="settings.defaults.sourceType">
+                                                        <option v-for="source in reidState.sourceOptions" :key="source.value" :value="source.value">{{ source.label }}</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="platform-card">
+                                    <div class="platform-card-header">
+                                        <div>
+                                            <h3>账号信息</h3>
+                                            <p class="platform-card-subtitle">展示当前账号基础信息与累计识别数据。</p>
+                                        </div>
+                                    </div>
+                                    <div class="platform-card-body">
+                                        <div class="account-list">
+                                            <div class="account-item">
+                                                <span>用户名</span>
+                                                <strong>{{ currentUser }}</strong>
+                                            </div>
+                                            <div class="account-item">
+                                                <span>邮箱</span>
+                                                <strong>{{ currentUserEmail }}</strong>
+                                            </div>
+                                            <div class="account-item">
+                                                <span>当前模式</span>
+                                                <strong>{{ previewBadgeText }}</strong>
+                                            </div>
+                                            <div class="account-item">
+                                                <span>注册时间</span>
+                                                <strong>{{ formattedRegistrationDate }}</strong>
+                                            </div>
+                                            <div class="account-item">
+                                                <span>最近使用时间</span>
+                                                <strong>{{ formattedLastUsed }}</strong>
+                                            </div>
+                                            <div class="account-item">
+                                                <span>累计重识别次数</span>
+                                                <strong>{{ usageCount }} 次</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section v-else class="page-stack">
+                            <div class="platform-card">
+                                <div class="platform-card-body">
+                                    <empty-state icon="fas fa-map-signs" title="页面路由未命中" description="当前 hash 路由未匹配到页面，请检查导航 route 与渲染分支是否一致。"></empty-state>
+                                </div>
+                            </div>
+                        </section>
                     </div>
+
+                    <p class="platform-footer-note">
+                        行人重识别工作台体验、历史详情抽屉、实时监测表达和统计建议区。
+                    </p>
                 </div>
             </main>
 
-            <!-- 底部信息 -->
-            <footer class="app-footer">
-                <div class="footer-content">
-                    <div class="footer-section">
-                        <h3><i class="fas fa-user-friends"></i> 行人重识别系统</h3>
-                        <p>基于Web的智能行人重识别系统</p>
+            <div v-if="showHistoryDetail" class="detail-modal" @click.self="closeHistoryDetail">
+                <div class="detail-panel is-drawer">
+                    <div class="detail-panel-header">
+                        <div>
+                            <h3>历史记录详情</h3>
+                            <p class="platform-card-subtitle">{{ selectedRecord ? selectedRecord.id : '' }}</p>
+                        </div>
+                        <button type="button" class="secondary-btn" @click="closeHistoryDetail">
+                            <i class="fas fa-xmark"></i>
+                            <span>关闭</span>
+                        </button>
                     </div>
-                    <div class="footer-section">
-                        <h3><i class="fas fa-address-card"></i> 联系方式</h3>
-                        <p><i class="fas fa-envelope"></i> 邮箱: jayli1006@163.com</p>
-                        <p><i class="fas fa-phone"></i> 电话: +86 17590525079</p>
+
+                    <div class="detail-panel-body">
+                        <div v-if="detailLoading">
+                            <loading-state icon="fas fa-spinner" title="正在加载详情" description="系统正在读取记录详情与关联信息。"></loading-state>
+                        </div>
+                        <template v-else-if="selectedRecord">
+                            <div class="detail-gallery">
+                                <figure>
+                                    <div class="detail-image-frame">
+                                        <safe-image :src="getRecordQueryImageUrl(selectedRecord)" alt="查询图" text="查询图不可用"></safe-image>
+                                    </div>
+                                    <figcaption>查询图</figcaption>
+                                </figure>
+                                <figure>
+                                    <div class="detail-image-frame">
+                                        <safe-image :src="getRecordMatchImageUrl(selectedRecord)" alt="匹配图" text="匹配图不可用"></safe-image>
+                                    </div>
+                                    <figcaption>匹配图</figcaption>
+                                </figure>
+                            </div>
+
+                            <div class="detail-grid">
+                                <div class="detail-item">
+                                    <span>相似度</span>
+                                    <strong>{{ selectedRecord.similarity.toFixed(1) }}%</strong>
+                                </div>
+                                <div class="detail-item">
+                                    <span>状态</span>
+                                    <strong>{{ getRecordStatusText(selectedRecord.status) }}</strong>
+                                </div>
+                                <div class="detail-item">
+                                    <span>保存状态</span>
+                                    <strong>{{ getSaveStateText(selectedRecord.saved) }}</strong>
+                                </div>
+                                <div class="detail-item">
+                                    <span>摄像头</span>
+                                    <strong>{{ selectedRecord.camera }}</strong>
+                                </div>
+                                <div class="detail-item">
+                                    <span>地点</span>
+                                    <strong>{{ selectedRecord.location }}</strong>
+                                </div>
+                                <div class="detail-item">
+                                    <span>时间</span>
+                                    <strong>{{ formatDate(selectedRecord.time, true) }}</strong>
+                                </div>
+                                <div class="detail-item">
+                                    <span>操作员</span>
+                                    <strong>{{ selectedRecord.operator }}</strong>
+                                </div>
+                                <div class="detail-item detail-item-full">
+                                    <span>使用参数摘要</span>
+                                    <strong>{{ selectedRecordParamsSummary.join(' / ') }}</strong>
+                                </div>
+                                <div class="detail-item detail-item-full">
+                                    <span>轨迹摘要</span>
+                                    <strong v-if="selectedRecordTrajectory.length === 0">暂无轨迹数据</strong>
+                                    <div v-else class="drawer-trajectory-list">
+                                        <div v-for="node in selectedRecordTrajectory.slice(0, 5)" :key="node.seq + node.timestamp" class="drawer-trajectory-item">
+                                            <span>#{{ node.seq }}</span>
+                                            <strong>{{ node.location }}</strong>
+                                            <small>{{ node.cameraName }} · {{ formatDate(node.timestamp, true) }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="detail-item detail-item-full">
+                                    <span>备注</span>
+                                    <strong>{{ selectedRecord.note }}</strong>
+                                </div>
+                            </div>
+                        </template>
                     </div>
                 </div>
-                <div class="footer-bottom">
-                    <p><i class="far fa-copyright"></i> 2025 行人重识别系统 版权所有</p>
-                </div>
-            </footer>
+            </div>
+
+        </div>
+
+        <div class="platform-toast-stack" v-if="toasts.length > 0">
+            <div
+                v-for="toast in toasts"
+                :key="toast.id"
+                class="platform-toast"
+                :class="'toast-' + toast.type"
+            >
+                <i :class="toast.icon"></i>
+                <span>{{ toast.message }}</span>
+            </div>
         </div>
     </div>
-    <!-- JavaScript文件 -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <script src="../javascript/mock-data.js"></script>
+    <script src="../javascript/platform-insights.js"></script>
+    <script src="../javascript/reid-workbench.js"></script>
+    <script src="../javascript/api-client.js"></script>
+    <script src="../javascript/reid-api.js"></script>
     <script src="../javascript/app.js"></script>
 </body>
 </html>

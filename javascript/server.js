@@ -13,7 +13,7 @@ const { spawn } = require('child_process');
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
-const PYTHON_BIN = process.env.PYTHON_BIN || 'python';
+const PYTHON_BIN = process.env.PYTHON_BIN || 'python3';
 const REID_TIMEOUT_MS = Number(process.env.REID_TIMEOUT_MS || 120000);
 const MAX_PYTHON_OUTPUT_BYTES = Number(process.env.MAX_PYTHON_OUTPUT_BYTES || 262144);
 const AUTH_TOKEN_SECRET = process.env.AUTH_TOKEN_SECRET || 'change-this-auth-token-secret';
@@ -44,6 +44,8 @@ const SMTP_FROM = process.env.SMTP_FROM || '';
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 const CROPS_DIR = path.join(__dirname, 'dataset', 'crops');
 const OUTPUT_DIR = path.join(__dirname, 'dataset', 'output');
+const RUNTIME_DIR = path.join(__dirname, 'runtime');
+const RUNTIME_STORE_FILE = path.join(RUNTIME_DIR, 'reid-runtime-store.json');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const ROOT_DIR = path.resolve(__dirname, '..');
 const HTML_DIR = path.join(ROOT_DIR, 'html');
@@ -52,7 +54,78 @@ const XR_HTML_FILE = path.join(HTML_DIR, 'xr.html');
 const ADMIN_HTML_FILE = path.join(HTML_DIR, 'admin.html');
 const CLIENT_APP_FILE = path.join(__dirname, 'app.js');
 const CLIENT_ADMIN_FILE = path.join(__dirname, 'admin.js');
+const CLIENT_MOCK_DATA_FILE = path.join(__dirname, 'mock-data.js');
+const CLIENT_REID_WORKBENCH_FILE = path.join(__dirname, 'reid-workbench.js');
+const CLIENT_PLATFORM_INSIGHTS_FILE = path.join(__dirname, 'platform-insights.js');
+const CLIENT_API_CLIENT_FILE = path.join(__dirname, 'api-client.js');
+const CLIENT_REID_API_FILE = path.join(__dirname, 'reid-api.js');
+const DEV_REID_USER_EMAIL_HEADER = 'x-reid-dev-user-email';
+const DEV_REID_USER_NAME_HEADER = 'x-reid-dev-username';
 let emailTransporter = null;
+let dataStorageMode = 'db';
+
+const KNOWN_REID_METADATA = Object.freeze({
+    '0002_c1s1_000003_02.jpg': {
+        cameraName: '南门广场-03',
+        location: '南门游客集散区',
+        captureTime: '2026-04-10T09:21:18+08:00',
+        status: 'verified',
+        note: '与南门广场重点检索片段高度匹配。',
+        trajectory: [
+            { seq: 1, cameraName: '南门广场-01', location: '南门入口', timestamp: '2026-04-10T09:16:02+08:00' },
+            { seq: 2, cameraName: '南门广场-02', location: '游客服务中心外侧', timestamp: '2026-04-10T09:17:15+08:00' },
+            { seq: 3, cameraName: '南门广场-03', location: '南门游客集散区', timestamp: '2026-04-10T09:21:18+08:00' }
+        ]
+    },
+    '0002_c1s1_000010_02.jpg': {
+        cameraName: '缆车入口-02',
+        location: '缆车排队区',
+        captureTime: '2026-04-10T09:19:42+08:00',
+        status: 'verified',
+        note: '服饰纹理与步态特征接近。',
+        trajectory: [
+            { seq: 1, cameraName: '湖心步道-01', location: '湖心步道入口', timestamp: '2026-04-10T09:09:22+08:00' },
+            { seq: 2, cameraName: '缆车入口-01', location: '缆车引导区', timestamp: '2026-04-10T09:14:10+08:00' },
+            { seq: 3, cameraName: '缆车入口-02', location: '缆车排队区', timestamp: '2026-04-10T09:19:42+08:00' }
+        ]
+    },
+    '0002_c1s1_000005_02.jpg': {
+        cameraName: '湖心步道-01',
+        location: '湖心步道',
+        captureTime: '2026-04-10T09:13:05+08:00',
+        status: 'review',
+        note: '遮挡较多，建议人工二次复核。',
+        trajectory: [
+            { seq: 1, cameraName: '南门广场-03', location: '南门游客集散区', timestamp: '2026-04-10T09:00:26+08:00' },
+            { seq: 2, cameraName: '湖心步道-01', location: '湖心步道', timestamp: '2026-04-10T09:13:05+08:00' },
+            { seq: 3, cameraName: '山顶观景台-01', location: '观景步道出口', timestamp: '2026-04-10T09:24:11+08:00' }
+        ]
+    },
+    '0002_c1s1_000011_02.jpg': {
+        cameraName: '山顶观景台-02',
+        location: '山顶观景台',
+        captureTime: '2026-04-10T09:24:11+08:00',
+        status: 'review',
+        note: '远景拍摄导致轮廓信息偏弱。',
+        trajectory: [
+            { seq: 1, cameraName: '缆车入口-02', location: '缆车排队区', timestamp: '2026-04-10T09:19:42+08:00' },
+            { seq: 2, cameraName: '山顶观景台-01', location: '观景步道出口', timestamp: '2026-04-10T09:22:48+08:00' },
+            { seq: 3, cameraName: '山顶观景台-02', location: '山顶观景台', timestamp: '2026-04-10T09:24:11+08:00' }
+        ]
+    },
+    '0002_c1s1_000012_02.jpg': {
+        cameraName: '北门停车场-01',
+        location: '北门停车场',
+        captureTime: '2026-04-10T09:08:33+08:00',
+        status: 'review',
+        note: '相似度略高于预警线，但场景跨度较大。',
+        trajectory: [
+            { seq: 1, cameraName: '南门广场-01', location: '南门入口', timestamp: '2026-04-10T08:51:07+08:00' },
+            { seq: 2, cameraName: '北门通道-01', location: '北门通道', timestamp: '2026-04-10T09:03:12+08:00' },
+            { seq: 3, cameraName: '北门停车场-01', location: '北门停车场', timestamp: '2026-04-10T09:08:33+08:00' }
+        ]
+    }
+});
 
 if (!process.env.AUTH_TOKEN_SECRET) {
     console.warn('[auth] AUTH_TOKEN_SECRET 未配置，当前正在使用默认值。');
@@ -82,13 +155,25 @@ if (fs.existsSync(CSS_DIR)) {
     app.use('/css', express.static(CSS_DIR));
 }
 
-app.get('/javascript/app.js', (req, res) => {
-    res.sendFile(CLIENT_APP_FILE);
-});
+function serveJavascriptFile(filePath) {
+    return (req, res, next) => {
+        res.type('application/javascript');
+        res.sendFile(filePath, (err) => {
+            if (err) {
+                next(err);
+            }
+        });
+    };
+}
 
-app.get('/javascript/admin.js', (req, res) => {
-    res.sendFile(CLIENT_ADMIN_FILE);
-});
+app.get('/javascript/app.js', serveJavascriptFile(CLIENT_APP_FILE));
+
+app.get('/javascript/admin.js', serveJavascriptFile(CLIENT_ADMIN_FILE));
+app.get('/javascript/mock-data.js', serveJavascriptFile(CLIENT_MOCK_DATA_FILE));
+app.get('/javascript/reid-workbench.js', serveJavascriptFile(CLIENT_REID_WORKBENCH_FILE));
+app.get('/javascript/platform-insights.js', serveJavascriptFile(CLIENT_PLATFORM_INSIGHTS_FILE));
+app.get('/javascript/api-client.js', serveJavascriptFile(CLIENT_API_CLIENT_FILE));
+app.get('/javascript/reid-api.js', serveJavascriptFile(CLIENT_REID_API_FILE));
 
 function serveXrPage(req, res, next) {
     res.sendFile(XR_HTML_FILE, (err) => {
@@ -278,6 +363,24 @@ async function sendEmailVerificationCode(options) {
 function parsePositiveInteger(value) {
     const parsed = Number.parseInt(value, 10);
     return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function clampNumber(value, min, max, fallbackValue) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+        return fallbackValue;
+    }
+
+    return Math.min(max, Math.max(min, parsed));
+}
+
+function clampInteger(value, min, max, fallbackValue) {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isInteger(parsed)) {
+        return fallbackValue;
+    }
+
+    return Math.min(max, Math.max(min, parsed));
 }
 
 function getImageContentType(filename) {
@@ -637,6 +740,608 @@ async function safeUnlink(filePath) {
     }
 }
 
+function cloneJson(value) {
+    return JSON.parse(JSON.stringify(value));
+}
+
+function createDefaultRuntimeStore() {
+    return {
+        version: 1,
+        nextUserId: 1,
+        nextHistoryId: 1,
+        users: [],
+        reidHistory: []
+    };
+}
+
+async function ensureRuntimeStoreFile() {
+    await ensureDirectory(RUNTIME_DIR);
+
+    try {
+        await fsp.access(RUNTIME_STORE_FILE, fs.constants.R_OK | fs.constants.W_OK);
+    } catch (err) {
+        await fsp.writeFile(
+            RUNTIME_STORE_FILE,
+            JSON.stringify(createDefaultRuntimeStore(), null, 2),
+            'utf8'
+        );
+    }
+}
+
+async function readRuntimeStore() {
+    try {
+        await ensureRuntimeStoreFile();
+        return JSON.parse(await fsp.readFile(RUNTIME_STORE_FILE, 'utf8'));
+    } catch (err) {
+        console.error('[runtime] 读取本地存储失败，已回退到默认结构:', err);
+        return createDefaultRuntimeStore();
+    }
+}
+
+async function writeRuntimeStore(store) {
+    await ensureRuntimeStoreFile();
+    await fsp.writeFile(RUNTIME_STORE_FILE, JSON.stringify(store, null, 2), 'utf8');
+}
+
+async function withRuntimeStore(mutator) {
+    const store = await readRuntimeStore();
+    const result = await mutator(store);
+    await writeRuntimeStore(store);
+    return result;
+}
+
+function buildAbsoluteUrl(req, routePath) {
+    const protocolHeader = trimString(req.headers['x-forwarded-proto']);
+    const protocol = protocolHeader ? protocolHeader.split(',')[0].trim() : (req.protocol || 'http');
+    const hostHeader = trimString(req.headers['x-forwarded-host']) || trimString(req.get('host'));
+
+    if (!hostHeader) {
+        return routePath;
+    }
+
+    return `${protocol}://${hostHeader}${routePath}`;
+}
+
+function buildUploadImageUrl(req, filename) {
+    if (!filename) {
+        return '';
+    }
+
+    return buildAbsoluteUrl(req, `/api/uploads/${encodeURIComponent(filename)}`);
+}
+
+function buildResultImageUrl(req, filename) {
+    if (!filename) {
+        return '';
+    }
+
+    return buildAbsoluteUrl(req, `/api/result-image/${encodeURIComponent(filename)}`);
+}
+
+function normalizeStatusValue(status) {
+    return ['verified', 'review', 'alert'].includes(status) ? status : 'review';
+}
+
+function toSimilarityPercent(value) {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) {
+        return 0;
+    }
+
+    return numericValue <= 1
+        ? Number((numericValue * 100).toFixed(1))
+        : Number(numericValue.toFixed(1));
+}
+
+function escapeLikeValue(value) {
+    return String(value || '').replace(/[\\%_]/g, '\\$&');
+}
+
+function buildHistoryRecordId(taskId, rowId) {
+    if (taskId) {
+        return taskId;
+    }
+
+    const numericId = Number(rowId || 0);
+    return `REC-${String(numericId).padStart(8, '0')}`;
+}
+
+function buildDefaultTrajectory(cameraName, location, captureTime) {
+    const finalLocation = location || '景区重点区域';
+    const finalCamera = cameraName || '景区摄像头';
+
+    if (finalLocation.includes('南门')) {
+        return [
+            { seq: 1, cameraName: '南门广场-01', location: '南门入口', timestamp: captureTime },
+            { seq: 2, cameraName: '南门广场-02', location: '游客服务中心外侧', timestamp: captureTime },
+            { seq: 3, cameraName: finalCamera, location: finalLocation, timestamp: captureTime }
+        ];
+    }
+
+    if (finalLocation.includes('缆车')) {
+        return [
+            { seq: 1, cameraName: '湖心步道-01', location: '湖心步道入口', timestamp: captureTime },
+            { seq: 2, cameraName: '缆车入口-01', location: '缆车引导区', timestamp: captureTime },
+            { seq: 3, cameraName: finalCamera, location: finalLocation, timestamp: captureTime }
+        ];
+    }
+
+    if (finalLocation.includes('湖心')) {
+        return [
+            { seq: 1, cameraName: '南门广场-03', location: '南门游客集散区', timestamp: captureTime },
+            { seq: 2, cameraName: finalCamera, location: finalLocation, timestamp: captureTime },
+            { seq: 3, cameraName: '山顶观景台-01', location: '观景步道出口', timestamp: captureTime }
+        ];
+    }
+
+    return [
+        { seq: 1, cameraName: '景区入口-01', location: '景区入口', timestamp: captureTime },
+        { seq: 2, cameraName: '游客服务中心-01', location: '游客服务中心外侧', timestamp: captureTime },
+        { seq: 3, cameraName: finalCamera, location: finalLocation, timestamp: captureTime }
+    ];
+}
+
+function getResultMetadata(filename, fallbackCaptureTime) {
+    const matched = KNOWN_REID_METADATA[filename];
+    if (matched) {
+        return cloneJson(matched);
+    }
+
+    const baseTime = fallbackCaptureTime || new Date().toISOString();
+    let cameraName = '景区摄像头-01';
+    let location = '景区重点区域';
+
+    if (filename.includes('000003')) {
+        cameraName = '南门广场-03';
+        location = '南门游客集散区';
+    } else if (filename.includes('000005')) {
+        cameraName = '湖心步道-01';
+        location = '湖心步道';
+    } else if (filename.includes('000010')) {
+        cameraName = '缆车入口-02';
+        location = '缆车排队区';
+    } else if (filename.includes('000011')) {
+        cameraName = '山顶观景台-02';
+        location = '山顶观景台';
+    } else if (filename.includes('000012')) {
+        cameraName = '北门停车场-01';
+        location = '北门停车场';
+    }
+
+    return {
+        cameraName,
+        location,
+        captureTime: baseTime,
+        status: 'review',
+        note: '当前结果已结合摄像头信息、位置和轨迹摘要进行整理展示。',
+        trajectory: buildDefaultTrajectory(cameraName, location, baseTime)
+    };
+}
+
+function buildResultItem(req, resultItem, index, context) {
+    const filename = path.basename(resultItem.filename || '');
+    const metadata = getResultMetadata(filename, context.startedAt);
+    const similarity = toSimilarityPercent(resultItem.similarity);
+    const passedThreshold = similarity / 100 >= Number(context.similarityThreshold || 0);
+    const status = normalizeStatusValue(
+        metadata.status || (passedThreshold ? 'verified' : 'review')
+    );
+    const captureTime = metadata.captureTime || context.startedAt;
+
+    return {
+        id: `${context.taskId}-R${String(index + 1).padStart(2, '0')}`,
+        rank: index + 1,
+        matchImage: filename,
+        matchImageUrl: buildResultImageUrl(req, filename),
+        similarity,
+        cameraName: metadata.cameraName,
+        location: metadata.location,
+        captureTime,
+        status,
+        saved: !!context.autoSaveResult,
+        note: metadata.note,
+        passedThreshold,
+        paramsSummary: {
+            confThreshold: Number(context.confThreshold || 0),
+            iouThreshold: Number(context.iouThreshold || 0),
+            similarityThreshold: Number(context.similarityThreshold || 0),
+            topK: Number(context.topK || 1),
+            sourceName: context.sourceName || ''
+        },
+        trajectory: Array.isArray(metadata.trajectory) ? metadata.trajectory : [],
+        resultClip: {
+            title: '结果视频区',
+            clipName: filename || 'result-frame.jpg',
+            description: '用于展示识别任务关联视频片段与关键画面信息。',
+            duration: '--:--'
+        },
+        currentFrame: {
+            title: '真实命中帧',
+            caption: `${metadata.cameraName} / Top-${index + 1}`,
+            image: filename,
+            imageUrl: buildResultImageUrl(req, filename),
+            timestamp: captureTime
+        }
+    };
+}
+
+function formatHistoryRecord(req, row) {
+    const normalized = normalizeRow(row);
+    const trajectory = Array.isArray(normalized.trajectory) ? normalized.trajectory : [];
+    const paramsSummary = normalized.params_summary && typeof normalized.params_summary === 'object'
+        ? normalized.params_summary
+        : {};
+    const queryFilename = path.basename(normalized.query_image_filename || '');
+    const matchFilename = path.basename(normalized.match_image_filename || '');
+
+    return {
+        id: buildHistoryRecordId(normalized.task_id, normalized.id),
+        queryImage: queryFilename,
+        queryImageUrl: buildUploadImageUrl(req, queryFilename),
+        matchImage: matchFilename,
+        matchImageUrl: buildResultImageUrl(req, matchFilename),
+        similarity: Number(normalized.similarity || 0),
+        status: normalizeStatusValue(normalized.status),
+        saved: !!normalized.saved,
+        camera: normalized.camera_name || '',
+        cameraName: normalized.camera_name || '',
+        location: normalized.location || '',
+        time: normalized.capture_time || normalized.created_at || null,
+        captureTime: normalized.capture_time || normalized.created_at || null,
+        operator: normalized.operator_name || '',
+        paramsSummary,
+        trajectory,
+        note: normalized.note || '',
+        sourceType: normalized.source_type || '',
+        sourceName: normalized.source_name || ''
+    };
+}
+
+async function resolveReidUser(req) {
+    if (dataStorageMode !== 'db') {
+        const payload = decodeToken(getBearerToken(req));
+        const previewEmail = normalizeEmail(req.headers[DEV_REID_USER_EMAIL_HEADER]);
+        const previewUsername = trimString(req.headers[DEV_REID_USER_NAME_HEADER]) || '系统管理员';
+
+        return withRuntimeStore(async (store) => {
+            let user = null;
+
+            if (payload && payload.role === 'user') {
+                user = (store.users || []).find((item) => (
+                    Number(item.id) === Number(payload.userId)
+                    && normalizeEmail(item.email) === normalizeEmail(payload.email)
+                )) || null;
+            } else if (previewEmail && isValidEmail(previewEmail)) {
+                user = (store.users || []).find((item) => normalizeEmail(item.email) === previewEmail) || null;
+
+                if (!user) {
+                    user = {
+                        id: store.nextUserId,
+                        username: previewUsername,
+                        email: previewEmail,
+                        usage_count: 0,
+                        last_used: new Date().toISOString(),
+                        registration_date: new Date().toISOString(),
+                        settings: DEFAULT_USER_SETTINGS
+                    };
+                    store.nextUserId += 1;
+                    store.users.push(user);
+                }
+            }
+
+            if (!user) {
+                throw createHttpError(401, '未授权，请先登录系统');
+            }
+
+            return normalizeRow(user);
+        });
+    }
+
+    const payload = decodeToken(getBearerToken(req));
+
+    if (payload && payload.role === 'user') {
+        const existing = await pool.query(
+            'SELECT id, username, email, usage_count, last_used, registration_date, settings FROM users WHERE id = $1 AND email = $2',
+            [payload.userId, payload.email]
+        );
+
+        if (existing.rowCount === 0) {
+            throw createHttpError(404, '用户不存在');
+        }
+
+        return firstNormalizedRow(existing);
+    }
+
+    const previewEmail = normalizeEmail(req.headers[DEV_REID_USER_EMAIL_HEADER]);
+    const previewUsername = trimString(req.headers[DEV_REID_USER_NAME_HEADER]) || '系统管理员';
+
+    if (!previewEmail || !isValidEmail(previewEmail)) {
+        throw createHttpError(401, '未授权，请先登录系统');
+    }
+
+    return withClient(async (client) => {
+        await client.query('BEGIN');
+        try {
+            const existing = await client.query(
+                `SELECT id, username, email, usage_count, last_used, registration_date, settings
+                 FROM users
+                 WHERE email = $1
+                 ORDER BY created_at DESC, id DESC
+                 LIMIT 1
+                 FOR UPDATE`,
+                [previewEmail]
+            );
+
+            if (existing.rowCount > 0) {
+                await client.query('COMMIT');
+                return firstNormalizedRow(existing);
+            }
+
+            const password = await hashPassword('preview-dev-account');
+            const inserted = await client.query(
+                `INSERT INTO users (
+                    username,
+                    email,
+                    password,
+                    email_verified,
+                    email_verified_at,
+                    usage_count,
+                    last_used,
+                    registration_date,
+                    settings
+                )
+                VALUES ($1, $2, $3, TRUE, NOW(), 0, NOW(), NOW(), $4)
+                RETURNING id, username, email, usage_count, last_used, registration_date, settings`,
+                [previewUsername, previewEmail, password, DEFAULT_USER_SETTINGS]
+            );
+
+            await client.query('COMMIT');
+            return firstNormalizedRow(inserted);
+        } catch (err) {
+            await client.query('ROLLBACK');
+            throw err;
+        }
+    });
+}
+
+async function incrementReidUsage(userId) {
+    if (dataStorageMode !== 'db') {
+        return withRuntimeStore(async (store) => {
+            const user = (store.users || []).find((item) => Number(item.id) === Number(userId));
+
+            if (!user) {
+                return null;
+            }
+
+            user.usage_count = Number(user.usage_count || 0) + 1;
+            user.last_used = new Date().toISOString();
+            return normalizeRow(user);
+        });
+    }
+
+    const usageResult = await pool.query(
+        `UPDATE users
+         SET usage_count = usage_count + 1, last_used = NOW()
+         WHERE id = $1
+         RETURNING usage_count, last_used`,
+        [userId]
+    );
+
+    return firstNormalizedRow(usageResult);
+}
+
+async function insertReidHistoryRecord(recordInput) {
+    if (dataStorageMode !== 'db') {
+        return withRuntimeStore(async (store) => {
+            const row = {
+                id: store.nextHistoryId,
+                user_id: recordInput.user_id,
+                user_email: recordInput.user_email,
+                task_id: recordInput.task_id,
+                source_type: recordInput.source_type,
+                source_name: recordInput.source_name,
+                query_image_filename: recordInput.query_image_filename,
+                match_image_filename: recordInput.match_image_filename,
+                similarity: recordInput.similarity,
+                status: recordInput.status,
+                saved: recordInput.saved,
+                camera_name: recordInput.camera_name,
+                location: recordInput.location,
+                capture_time: recordInput.capture_time,
+                operator_name: recordInput.operator_name,
+                params_summary: recordInput.params_summary,
+                trajectory: recordInput.trajectory,
+                note: recordInput.note,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+
+            store.nextHistoryId += 1;
+            store.reidHistory.unshift(row);
+            return normalizeRow(row);
+        });
+    }
+
+    const inserted = await pool.query(
+        `INSERT INTO reid_history (
+            user_id,
+            user_email,
+            task_id,
+            source_type,
+            source_name,
+            query_image_filename,
+            match_image_filename,
+            similarity,
+            status,
+            saved,
+            camera_name,
+            location,
+            capture_time,
+            operator_name,
+            params_summary,
+            trajectory,
+            note,
+            created_at,
+            updated_at
+        )
+        VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+            $11, $12, $13, $14, $15::jsonb, $16::jsonb, $17, NOW(), NOW()
+        )
+        RETURNING *`,
+        [
+            recordInput.user_id,
+            recordInput.user_email,
+            recordInput.task_id,
+            recordInput.source_type,
+            recordInput.source_name,
+            recordInput.query_image_filename,
+            recordInput.match_image_filename,
+            recordInput.similarity,
+            recordInput.status,
+            recordInput.saved,
+            recordInput.camera_name,
+            recordInput.location,
+            recordInput.capture_time,
+            recordInput.operator_name,
+            JSON.stringify(recordInput.params_summary || {}),
+            JSON.stringify(recordInput.trajectory || []),
+            recordInput.note || ''
+        ]
+    );
+
+    return firstNormalizedRow(inserted);
+}
+
+async function queryReidHistoryList(userId, filters) {
+    const normalizedFilters = filters || {};
+
+    if (dataStorageMode !== 'db') {
+        const page = Number(normalizedFilters.page || 1);
+        const pageSize = Number(normalizedFilters.pageSize || 20);
+        const keyword = trimString(normalizedFilters.keyword).toLowerCase();
+        const status = trimString(normalizedFilters.status);
+        const camera = trimString(normalizedFilters.camera);
+        const location = trimString(normalizedFilters.location);
+
+        return withRuntimeStore(async (store) => {
+            let records = (store.reidHistory || []).filter((item) => Number(item.user_id) === Number(userId));
+
+            if (keyword) {
+                records = records.filter((item) => (
+                    String(item.task_id || '').toLowerCase().includes(keyword)
+                    || String(item.camera_name || '').toLowerCase().includes(keyword)
+                    || String(item.location || '').toLowerCase().includes(keyword)
+                    || String(item.note || '').toLowerCase().includes(keyword)
+                ));
+            }
+
+            if (status) {
+                records = records.filter((item) => item.status === status);
+            }
+
+            if (camera) {
+                records = records.filter((item) => item.camera_name === camera);
+            }
+
+            if (location) {
+                records = records.filter((item) => item.location === location);
+            }
+
+            return {
+                total: records.length,
+                rows: records.slice((page - 1) * pageSize, page * pageSize).map(normalizeRow)
+            };
+        });
+    }
+
+    const keyword = trimString(normalizedFilters.keyword);
+    const status = trimString(normalizedFilters.status);
+    const camera = trimString(normalizedFilters.camera);
+    const location = trimString(normalizedFilters.location);
+    const page = Number(normalizedFilters.page || 1);
+    const pageSize = Number(normalizedFilters.pageSize || 20);
+    const whereParts = ['user_id = $1'];
+    const params = [userId];
+    let paramIndex = params.length;
+
+    if (keyword) {
+        paramIndex += 1;
+        params.push(`%${escapeLikeValue(keyword)}%`);
+        whereParts.push(`(
+            task_id ILIKE $${paramIndex} ESCAPE '\\'
+            OR camera_name ILIKE $${paramIndex} ESCAPE '\\'
+            OR location ILIKE $${paramIndex} ESCAPE '\\'
+            OR note ILIKE $${paramIndex} ESCAPE '\\'
+        )`);
+    }
+
+    if (status && ['verified', 'review', 'alert'].includes(status)) {
+        paramIndex += 1;
+        params.push(status);
+        whereParts.push(`status = $${paramIndex}`);
+    }
+
+    if (camera) {
+        paramIndex += 1;
+        params.push(camera);
+        whereParts.push(`camera_name = $${paramIndex}`);
+    }
+
+    if (location) {
+        paramIndex += 1;
+        params.push(location);
+        whereParts.push(`location = $${paramIndex}`);
+    }
+
+    const whereClause = whereParts.join(' AND ');
+    const countResult = await pool.query(
+        `SELECT COUNT(*) AS total FROM reid_history WHERE ${whereClause}`,
+        params
+    );
+    const total = Number((firstNormalizedRow(countResult) || {}).total || 0);
+    const listParams = params.concat([pageSize, (page - 1) * pageSize]);
+    const rowsResult = await pool.query(
+        `SELECT *
+         FROM reid_history
+         WHERE ${whereClause}
+         ORDER BY created_at DESC, id DESC
+         LIMIT $${listParams.length - 1}
+         OFFSET $${listParams.length}`,
+        listParams
+    );
+
+    return {
+        total,
+        rows: normalizeRows(rowsResult.rows)
+    };
+}
+
+async function queryReidHistoryDetail(userId, recordId) {
+    if (dataStorageMode !== 'db') {
+        return withRuntimeStore(async (store) => {
+            const matched = (store.reidHistory || []).find((item) => (
+                Number(item.user_id) === Number(userId)
+                && (String(item.task_id) === String(recordId) || String(item.id) === String(recordId))
+            ));
+
+            return matched ? normalizeRow(matched) : null;
+        });
+    }
+
+    const result = await pool.query(
+        `SELECT *
+         FROM reid_history
+         WHERE user_id = $1
+           AND (task_id = $2 OR id::text = $2)
+         ORDER BY created_at DESC, id DESC
+         LIMIT 1`,
+        [userId, recordId]
+    );
+
+    return result.rowCount > 0 ? firstNormalizedRow(result) : null;
+}
+
 function extractLastJson(stdout) {
     const lines = stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
 
@@ -651,146 +1356,217 @@ function extractLastJson(stdout) {
     return null;
 }
 
-function runReidInference(queryPath) {
+function runReidInference(queryPath, options = {}) {
     return new Promise((resolve, reject) => {
-        const child = spawn(
-            PYTHON_BIN,
-            [path.join(__dirname, 'reid_infer.py'), queryPath, CROPS_DIR, OUTPUT_DIR],
-            {
-                cwd: __dirname,
-                stdio: ['ignore', 'pipe', 'pipe']
-            }
-        );
+        const topK = Math.max(1, Math.min(10, Number.parseInt(options.topK, 10) || 1));
+        const excludeFilename = path.basename(options.excludeFilename || '');
+        const pythonCandidates = Array.from(new Set([PYTHON_BIN, 'python3', 'python'].filter(Boolean)));
+        let settled = false;
 
-        let stdout = '';
-        let stderr = '';
-        let stdoutBytes = 0;
-        let stderrBytes = 0;
-        let timedOut = false;
+        function spawnWithCandidate(candidateIndex) {
+            const pythonExecutable = pythonCandidates[candidateIndex];
+            const child = spawn(
+                pythonExecutable,
+                [
+                    path.join(__dirname, 'reid_infer.py'),
+                    queryPath,
+                    CROPS_DIR,
+                    OUTPUT_DIR,
+                    String(topK),
+                    excludeFilename
+                ],
+                {
+                    cwd: __dirname,
+                    stdio: ['ignore', 'pipe', 'pipe']
+                }
+            );
 
-        const timer = setTimeout(() => {
-            timedOut = true;
-            child.kill();
-        }, REID_TIMEOUT_MS);
+            let stdout = '';
+            let stderr = '';
+            let stdoutBytes = 0;
+            let stderrBytes = 0;
+            let timedOut = false;
+            let ignoreClose = false;
 
-        child.stdout.on('data', (chunk) => {
-            stdoutBytes += chunk.length;
-            if (stdoutBytes <= MAX_PYTHON_OUTPUT_BYTES) {
-                stdout += chunk.toString();
-            }
-        });
+            const timer = setTimeout(() => {
+                timedOut = true;
+                child.kill();
+            }, REID_TIMEOUT_MS);
 
-        child.stderr.on('data', (chunk) => {
-            stderrBytes += chunk.length;
-            if (stderrBytes <= MAX_PYTHON_OUTPUT_BYTES) {
-                stderr += chunk.toString();
-            }
-        });
+            child.stdout.on('data', (chunk) => {
+                stdoutBytes += chunk.length;
+                if (stdoutBytes <= MAX_PYTHON_OUTPUT_BYTES) {
+                    stdout += chunk.toString();
+                }
+            });
 
-        child.on('error', (err) => {
-            clearTimeout(timer);
-            reject(createHttpError(500, `无法启动 Python 进程: ${err.message}`));
-        });
+            child.stderr.on('data', (chunk) => {
+                stderrBytes += chunk.length;
+                if (stderrBytes <= MAX_PYTHON_OUTPUT_BYTES) {
+                    stderr += chunk.toString();
+                }
+            });
 
-        child.on('close', (code) => {
-            clearTimeout(timer);
+            child.on('error', (err) => {
+                clearTimeout(timer);
 
-            if (timedOut) {
-                reject(createHttpError(504, '识别超时，请稍后重试'));
-                return;
-            }
+                if (err.code === 'ENOENT' && candidateIndex < pythonCandidates.length - 1) {
+                    ignoreClose = true;
+                    spawnWithCandidate(candidateIndex + 1);
+                    return;
+                }
 
-            if (code !== 0) {
-                const detail = stderr.trim() || `Python 进程退出码 ${code}`;
-                reject(createHttpError(500, '识别失败，推理脚本执行异常', { detail }));
-                return;
-            }
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                reject(createHttpError(500, `无法启动 Python 进程: ${err.message}`));
+            });
 
-            const result = extractLastJson(stdout);
-            if (!result) {
-                reject(createHttpError(500, '识别失败，无法解析推理结果', {
-                    detail: stdout.slice(0, 500)
-                }));
-                return;
-            }
+            child.on('close', (code) => {
+                if (ignoreClose || settled) {
+                    return;
+                }
 
-            resolve(result);
-        });
+                clearTimeout(timer);
+
+                if (timedOut) {
+                    settled = true;
+                    reject(createHttpError(504, '识别超时，请稍后重试'));
+                    return;
+                }
+
+                if (code !== 0) {
+                    const detail = stderr.trim() || `Python 进程退出码 ${code}`;
+                    settled = true;
+                    reject(createHttpError(500, '识别失败，推理脚本执行异常', { detail }));
+                    return;
+                }
+
+                const result = extractLastJson(stdout);
+                if (!result) {
+                    settled = true;
+                    reject(createHttpError(500, '识别失败，无法解析推理结果', {
+                        detail: stdout.slice(0, 500)
+                    }));
+                    return;
+                }
+
+                settled = true;
+                resolve(result);
+            });
+        }
+
+        spawnWithCandidate(0);
     });
 }
 
 async function initialize() {
-    await Promise.all([ensureDirectory(UPLOAD_DIR), ensureDirectory(OUTPUT_DIR)]);
+    await Promise.all([ensureDirectory(UPLOAD_DIR), ensureDirectory(OUTPUT_DIR), ensureRuntimeStoreFile()]);
 
-    await withClient(async (client) => {
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                username VARCHAR(100) NOT NULL,
-                email VARCHAR(255) UNIQUE NOT NULL,
-                password VARCHAR(255) NOT NULL,
-                email_verified BOOLEAN NOT NULL DEFAULT FALSE,
-                email_verified_at TIMESTAMP,
-                usage_count INTEGER DEFAULT 0,
-                last_used TIMESTAMP,
-                registration_date TIMESTAMP DEFAULT NOW(),
-                settings JSONB DEFAULT '{"notifications": true, "autoSave": true}'::jsonb,
-                created_at TIMESTAMP DEFAULT NOW()
-            )
-        `);
+    try {
+        await withClient(async (client) => {
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(100) NOT NULL,
+                    email VARCHAR(255) UNIQUE NOT NULL,
+                    password VARCHAR(255) NOT NULL,
+                    email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+                    email_verified_at TIMESTAMP,
+                    usage_count INTEGER DEFAULT 0,
+                    last_used TIMESTAMP,
+                    registration_date TIMESTAMP DEFAULT NOW(),
+                    settings JSONB DEFAULT '{"notifications": true, "autoSave": true}'::jsonb,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
 
-        await client.query(`
-            ALTER TABLE users
-            ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE
-        `);
-        await client.query(`
-            ALTER TABLE users
-            ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMP
-        `);
+            await client.query(`
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE
+            `);
+            await client.query(`
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMP
+            `);
 
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS user_images (
-                id SERIAL PRIMARY KEY,
-                user_email VARCHAR(255) NOT NULL,
-                filename VARCHAR(255) NOT NULL,
-                image_data BYTEA,
-                created_at TIMESTAMP DEFAULT NOW()
-            )
-        `);
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS user_images (
+                    id SERIAL PRIMARY KEY,
+                    user_email VARCHAR(255) NOT NULL,
+                    filename VARCHAR(255) NOT NULL,
+                    image_data BYTEA,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
 
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS email_verification_codes (
-                id BIGSERIAL PRIMARY KEY,
-                email VARCHAR(255) NOT NULL,
-                scene VARCHAR(32) NOT NULL,
-                code_hash CHAR(64) NOT NULL,
-                status VARCHAR(16) NOT NULL DEFAULT 'pending',
-                attempt_count INTEGER NOT NULL DEFAULT 0,
-                max_attempts INTEGER NOT NULL DEFAULT 5,
-                expires_at TIMESTAMP NOT NULL,
-                consumed_at TIMESTAMP,
-                invalidated_at TIMESTAMP,
-                send_ip VARCHAR(64),
-                verify_ip VARCHAR(64),
-                user_agent TEXT,
-                created_at TIMESTAMP NOT NULL DEFAULT NOW()
-            )
-        `);
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS email_verification_codes (
+                    id BIGSERIAL PRIMARY KEY,
+                    email VARCHAR(255) NOT NULL,
+                    scene VARCHAR(32) NOT NULL,
+                    code_hash CHAR(64) NOT NULL,
+                    status VARCHAR(16) NOT NULL DEFAULT 'pending',
+                    attempt_count INTEGER NOT NULL DEFAULT 0,
+                    max_attempts INTEGER NOT NULL DEFAULT 5,
+                    expires_at TIMESTAMP NOT NULL,
+                    consumed_at TIMESTAMP,
+                    invalidated_at TIMESTAMP,
+                    send_ip VARCHAR(64),
+                    verify_ip VARCHAR(64),
+                    user_agent TEXT,
+                    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                )
+            `);
 
-        await client.query('CREATE INDEX IF NOT EXISTS idx_users_username ON users (username)');
-        await client.query('CREATE INDEX IF NOT EXISTS idx_users_last_used ON users (last_used)');
-        await client.query('CREATE INDEX IF NOT EXISTS idx_user_images_user_email ON user_images (user_email)');
-        await client.query(`
-            CREATE INDEX IF NOT EXISTS idx_email_codes_lookup
-            ON email_verification_codes (email, scene, status, created_at DESC)
-        `);
-        await client.query(`
-            CREATE INDEX IF NOT EXISTS idx_email_codes_send_ip
-            ON email_verification_codes (send_ip, scene, created_at DESC)
-        `);
-    });
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS reid_history (
+                    id BIGSERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    user_email VARCHAR(255) NOT NULL,
+                    task_id VARCHAR(64) NOT NULL,
+                    source_type VARCHAR(32) NOT NULL,
+                    source_name VARCHAR(120) NOT NULL,
+                    query_image_filename VARCHAR(255) NOT NULL,
+                    match_image_filename VARCHAR(255) NOT NULL,
+                    similarity NUMERIC(6, 2) NOT NULL DEFAULT 0,
+                    status VARCHAR(16) NOT NULL DEFAULT 'review',
+                    saved BOOLEAN NOT NULL DEFAULT FALSE,
+                    camera_name VARCHAR(120) NOT NULL DEFAULT '',
+                    location VARCHAR(160) NOT NULL DEFAULT '',
+                    capture_time TIMESTAMP,
+                    operator_name VARCHAR(120) NOT NULL DEFAULT '',
+                    params_summary JSONB NOT NULL DEFAULT '{}'::jsonb,
+                    trajectory JSONB NOT NULL DEFAULT '[]'::jsonb,
+                    note TEXT NOT NULL DEFAULT '',
+                    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+                )
+            `);
 
-    console.log('[init] 数据库与目录初始化完成');
+            await client.query('CREATE INDEX IF NOT EXISTS idx_users_username ON users (username)');
+            await client.query('CREATE INDEX IF NOT EXISTS idx_users_last_used ON users (last_used)');
+            await client.query('CREATE INDEX IF NOT EXISTS idx_user_images_user_email ON user_images (user_email)');
+            await client.query(`
+                CREATE INDEX IF NOT EXISTS idx_email_codes_lookup
+                ON email_verification_codes (email, scene, status, created_at DESC)
+            `);
+            await client.query(`
+                CREATE INDEX IF NOT EXISTS idx_email_codes_send_ip
+                ON email_verification_codes (send_ip, scene, created_at DESC)
+            `);
+            await client.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_reid_history_task_id ON reid_history (task_id)');
+            await client.query('CREATE INDEX IF NOT EXISTS idx_reid_history_user_created ON reid_history (user_id, created_at DESC)');
+            await client.query('CREATE INDEX IF NOT EXISTS idx_reid_history_status ON reid_history (status)');
+        });
+
+        dataStorageMode = 'db';
+        console.log('[init] 数据库与目录初始化完成');
+    } catch (err) {
+        dataStorageMode = 'file';
+        console.warn('[init] 数据库不可用，最小真实链路已回退到本地文件存储:', err.message);
+    }
 }
 
 app.post('/api/register', asyncHandler(async (req, res) => {
@@ -1198,6 +1974,175 @@ app.get('/api/user/profile', requireRole('user'), asyncHandler(async (req, res) 
     });
 }));
 
+app.get('/api/uploads/:filename', asyncHandler(async (req, res) => {
+    const filename = path.basename(req.params.filename);
+    const filePath = path.join(UPLOAD_DIR, filename);
+
+    try {
+        await fsp.access(filePath, fs.constants.R_OK);
+    } catch (err) {
+        throw createHttpError(404, '图片不存在');
+    }
+
+    res.sendFile(filePath);
+}));
+
+app.post('/api/reid/search', upload.single('queryImage'), asyncHandler(async (req, res) => {
+    const user = await resolveReidUser(req);
+    const sourceType = trimString(req.body.sourceType) || 'localVideo';
+    const sourceNameMap = {
+        localVideo: '本地视频',
+        cameraStream: '摄像头源',
+        historyLibrary: '历史库'
+    };
+    const confThreshold = clampNumber(req.body.confThreshold, 0, 1, 0.72);
+    const iouThreshold = clampNumber(req.body.iouThreshold, 0, 1, 0.45);
+    const similarityThreshold = clampNumber(req.body.similarityThreshold, 0, 1, 0.88);
+    const topK = clampInteger(req.body.topK, 1, 10, 5);
+    const autoSaveResult = String(req.body.autoSaveResult).toLowerCase() === 'true';
+
+    if (!req.file) {
+        throw createHttpError(400, '请上传查询图');
+    }
+
+    const ext = path.extname(req.file.originalname || '').toLowerCase();
+    const safeExt = ext && ['.jpg', '.jpeg', '.png', '.webp'].includes(ext) ? ext : '.jpg';
+    const taskId = `TASK-${Date.now()}${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`;
+    const storedQueryFilename = `reid_query_${taskId}${safeExt}`;
+    const queryPath = path.join(UPLOAD_DIR, storedQueryFilename);
+    const startedAt = new Date().toISOString();
+
+    await fsp.writeFile(queryPath, req.file.buffer);
+
+    try {
+        const inferenceResult = await runReidInference(queryPath, {
+            topK,
+            excludeFilename: req.file.originalname
+        });
+        const rawResults = Array.isArray(inferenceResult.results)
+            ? inferenceResult.results
+            : (inferenceResult.filename ? [inferenceResult] : []);
+        const normalizedResults = rawResults.slice(0, topK).map((item, index) => buildResultItem(req, item, index, {
+            taskId,
+            sourceType,
+            sourceName: sourceNameMap[sourceType] || '未命名目标源',
+            confThreshold,
+            iouThreshold,
+            similarityThreshold,
+            topK,
+            autoSaveResult,
+            startedAt
+        }));
+        const topResult = normalizedResults[0] || null;
+        let savedRecord = null;
+
+        const usage = await incrementReidUsage(user.id);
+
+        if (topResult) {
+            savedRecord = formatHistoryRecord(req, await insertReidHistoryRecord({
+                user_id: user.id,
+                user_email: user.email,
+                task_id: taskId,
+                source_type: sourceType,
+                source_name: sourceNameMap[sourceType] || '未命名目标源',
+                query_image_filename: storedQueryFilename,
+                match_image_filename: topResult.matchImage,
+                similarity: topResult.similarity,
+                status: topResult.status,
+                saved: topResult.saved,
+                camera_name: topResult.cameraName,
+                location: topResult.location,
+                capture_time: topResult.captureTime,
+                operator_name: autoSaveResult ? '系统自动保存' : '系统实时检索',
+                params_summary: topResult.paramsSummary || {},
+                trajectory: topResult.trajectory || [],
+                note: topResult.note || ''
+            }));
+        } else {
+            await safeUnlink(queryPath);
+        }
+
+        res.json({
+            success: true,
+            taskId,
+            message: normalizedResults.length > 0 ? '识别完成' : '未找到匹配结果',
+            query: {
+                filename: storedQueryFilename,
+                originalName: req.file.originalname,
+                queryImageUrl: buildUploadImageUrl(req, storedQueryFilename),
+                sourceType,
+                sourceName: sourceNameMap[sourceType] || '未命名目标源'
+            },
+            results: normalizedResults,
+            summary: {
+                detectedCandidates: Math.max(normalizedResults.length, rawResults.length * 3),
+                matchedCandidates: rawResults.length,
+                finishedResults: normalizedResults.length
+            },
+            trajectory: topResult ? topResult.trajectory : [],
+            savedRecord,
+            usage: usage ? {
+                usageCount: Number(usage.usage_count || 0),
+                lastUsed: usage.last_used
+            } : null
+        });
+    } catch (error) {
+        await safeUnlink(queryPath);
+        throw error;
+    }
+}));
+
+app.get('/api/reid/history', asyncHandler(async (req, res) => {
+    const user = await resolveReidUser(req);
+    const page = Math.max(1, parsePositiveInteger(req.query.page) || 1);
+    const pageSize = Math.min(50, Math.max(1, parsePositiveInteger(req.query.pageSize) || 20));
+    const keyword = trimString(req.query.keyword);
+    const status = normalizeStatusValue(trimString(req.query.status)) === 'review'
+        && !['review', 'verified', 'alert'].includes(trimString(req.query.status))
+        ? ''
+        : trimString(req.query.status);
+    const camera = trimString(req.query.camera);
+    const location = trimString(req.query.location);
+    const queryResult = await queryReidHistoryList(user.id, {
+        page,
+        pageSize,
+        keyword,
+        status: status && status !== '全部' ? status : '',
+        camera: camera && camera !== '全部' ? camera : '',
+        location: location && location !== '全部' ? location : ''
+    });
+
+    res.json({
+        success: true,
+        records: normalizeRows(queryResult.rows).map((row) => formatHistoryRecord(req, row)),
+        pagination: {
+            page,
+            pageSize,
+            total: queryResult.total
+        }
+    });
+}));
+
+app.get('/api/reid/history/:id', asyncHandler(async (req, res) => {
+    const user = await resolveReidUser(req);
+    const recordId = trimString(req.params.id);
+
+    if (!recordId) {
+        throw createHttpError(400, '无效的记录编号');
+    }
+
+    const record = await queryReidHistoryDetail(user.id, recordId);
+
+    if (!record) {
+        throw createHttpError(404, '历史记录不存在');
+    }
+
+    res.json({
+        success: true,
+        record: formatHistoryRecord(req, record)
+    });
+}));
+
 app.post('/api/reid', requireRole('user'), upload.single('image'), asyncHandler(async (req, res) => {
     if (!req.file) {
         throw createHttpError(400, '请上传图片');
@@ -1219,7 +2164,10 @@ app.post('/api/reid', requireRole('user'), upload.single('image'), asyncHandler(
     await fsp.writeFile(queryPath, req.file.buffer);
 
     try {
-        const result = await runReidInference(queryPath);
+        const result = await runReidInference(queryPath, {
+            topK: 1,
+            excludeFilename: req.file.originalname
+        });
         if (!result || !result.filename) {
             throw createHttpError(404, '未找到匹配图片');
         }
@@ -1259,6 +2207,32 @@ app.post('/api/reid', requireRole('user'), upload.single('image'), asyncHandler(
 app.get('/api/result-image/:filename', asyncHandler(async (req, res) => {
     const filename = path.basename(req.params.filename);
     const filePath = path.join(OUTPUT_DIR, filename);
+
+    try {
+        await fsp.access(filePath, fs.constants.R_OK);
+    } catch (err) {
+        throw createHttpError(404, '图片不存在');
+    }
+
+    res.sendFile(filePath);
+}));
+
+app.get('/api/mock/crops/:filename', asyncHandler(async (req, res) => {
+    const filename = path.basename(req.params.filename);
+    const filePath = path.join(CROPS_DIR, filename);
+
+    try {
+        await fsp.access(filePath, fs.constants.R_OK);
+    } catch (err) {
+        throw createHttpError(404, '图片不存在');
+    }
+
+    res.sendFile(filePath);
+}));
+
+app.get('/javascript/dataset/crops/:filename', asyncHandler(async (req, res) => {
+    const filename = path.basename(req.params.filename);
+    const filePath = path.join(CROPS_DIR, filename);
 
     try {
         await fsp.access(filePath, fs.constants.R_OK);
