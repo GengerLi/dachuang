@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "nextUserId": 2,
+  "nextHistoryId": 3,
+  "users": [
+    {
+      "id": 1,
+      "username": "æ¬å°é¢è§ç¨æ·",
+      "email": "preview@local.test",
+      "usage_count": 2,
+      "last_used": "2026-04-10T02:50:10.445Z",
+      "registration_date": "2026-04-10T02:41:52.192Z",
+      "settings": {
+        "notifications": true,
+        "autoSave": true
+      }
+    }
+  ],
+  "reidHistory": [
+    {
+      "id": 2,
+      "user_id": 1,
+      "user_email": "preview@local.test",
+      "task_id": "TASK-1775789405237572",
+      "source_type": "localVideo",
+      "source_name": "本地视频",
+      "query_image_filename": "reid_query_TASK-1775789405237572.jpg",
+      "match_image_filename": "0001_c1s1_000009_01.jpg",
+      "similarity": 56.7,
+      "status": "review",
+      "saved": true,
+      "camera_name": "景区摄像头-01",
+      "location": "景区重点区域",
+      "capture_time": "2026-04-10T02:50:05.237Z",
+      "operator_name": "系统自动保存",
+      "params_summary": {
+        "confThreshold": 0.72,
+        "iouThreshold": 0.45,
+        "similarityThreshold": 0.5,
+        "topK": 3,
+        "sourceName": "本地视频"
+      },
+      "trajectory": [
+        {
+          "seq": 1,
+          "cameraName": "景区入口-01",
+          "location": "景区入口",
+          "timestamp": "2026-04-10T02:50:05.237Z"
+        },
+        {
+          "seq": 2,
+          "cameraName": "游客服务中心-01",
+          "location": "游客服务中心外侧",
+          "timestamp": "2026-04-10T02:50:05.237Z"
+        },
+        {
+          "seq": 3,
+          "cameraName": "景区摄像头-01",
+          "location": "景区重点区域",
+          "timestamp": "2026-04-10T02:50:05.237Z"
+        }
+      ],
+      "note": "当前结果来自最小真实链路，摄像头与轨迹字段按默认规则补齐。",
+      "created_at": "2026-04-10T02:50:10.447Z",
+      "updated_at": "2026-04-10T02:50:10.447Z"
+    },
+    {
+      "id": 1,
+      "user_id": 1,
+      "user_email": "preview@local.test",
+      "task_id": "TASK-1775789219493732",
+      "source_type": "localVideo",
+      "source_name": "本地视频",
+      "query_image_filename": "reid_query_TASK-1775789219493732.jpg",
+      "match_image_filename": "0001_c1s1_000010_01.jpg",
+      "similarity": 57.8,
+      "status": "review",
+      "saved": true,
+      "camera_name": "缆车入口-02",
+      "location": "缆车排队区",
+      "capture_time": "2026-04-10T02:46:59.493Z",
+      "operator_name": "系统自动保存",
+      "params_summary": {
+        "confThreshold": 0.72,
+        "iouThreshold": 0.45,
+        "similarityThreshold": 0.5,
+        "topK": 3,
+        "sourceName": "本地视频"
+      },
+      "trajectory": [
+        {
+          "seq": 1,
+          "cameraName": "湖心步道-01",
+          "location": "湖心步道入口",
+          "timestamp": "2026-04-10T02:46:59.493Z"
+        },
+        {
+          "seq": 2,
+          "cameraName": "缆车入口-01",
+          "location": "缆车引导区",
+          "timestamp": "2026-04-10T02:46:59.493Z"
+        },
+        {
+          "seq": 3,
+          "cameraName": "缆车入口-02",
+          "location": "缆车排队区",
+          "timestamp": "2026-04-10T02:46:59.493Z"
+        }
+      ],
+      "note": "当前结果来自最小真实链路，摄像头与轨迹字段按默认规则补齐。",
+      "created_at": "2026-04-10T02:47:03.995Z",
+      "updated_at": "2026-04-10T02:47:03.995Z"
+    }
+  ]
+}

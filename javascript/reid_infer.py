@@ -6,8 +6,6 @@ import numpy as np
 import warnings
 import torch
 from torchvision import transforms
-from sklearn.preprocessing import normalize
-from scipy.spatial.distance import euclidean
 
 import models
 from util.utils import read_image, img_to_tensor
@@ -18,7 +16,17 @@ warnings.filterwarnings("ignore")
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
-def run_find_most(query_path, crops_dir, output_dir):
+def l2_normalize(array):
+    norms = np.linalg.norm(array, axis=1, keepdims=True)
+    norms[norms == 0] = 1.0
+    return array / norms
+
+
+def euclidean_distance(vector_a, vector_b):
+    return float(np.linalg.norm(vector_a - vector_b))
+
+
+def run_find_most(query_path, crops_dir, output_dir, top_k=1, exclude_filename=''):
     os.environ['CUDA_VISIBLE_DEVICES'] = "1"
     use_gpu = torch.cuda.is_available()
 
@@ -64,15 +72,16 @@ def run_find_most(query_path, crops_dir, output_dir):
     model.eval()
 
     f1 = extractor(img1_tensor)
-    a1 = normalize(pool2d(f1[0], type='max'))
+    a1 = l2_normalize(pool2d(f1[0], type='max'))
 
     os.makedirs(output_dir, exist_ok=True)
-    best_match = None
-    best_distance = float('inf')
+    all_matches = []
 
     for img_name in os.listdir(crops_dir):
         img_path = os.path.join(crops_dir, img_name)
         if img_path == query_path:
+            continue
+        if exclude_filename and os.path.basename(img_path) == exclude_filename:
             continue
         try:
             img2 = read_image(img_path)
@@ -80,43 +89,62 @@ def run_find_most(query_path, crops_dir, output_dir):
             if use_gpu:
                 img2_tensor = img2_tensor.cuda()
             f2 = extractor(img2_tensor)
-            a2 = normalize(pool2d(f2[0], type='max'))
+            a2 = l2_normalize(pool2d(f2[0], type='max'))
 
             dist = np.zeros((8, 8))
             for i in range(8):
                 for j in range(8):
-                    dist[i][j] = euclidean(a1[i], a2[j])
+                    dist[i][j] = euclidean_distance(a1[i], a2[j])
             aligned_distance = np.mean(dist)
 
-            if aligned_distance < best_distance:
-                best_distance = aligned_distance
-                best_match = img_path
+            all_matches.append({
+                "filename": os.path.basename(img_path),
+                "distance": float(aligned_distance),
+                "similarity": float(1 / (1 + aligned_distance)),
+                "original_path": os.path.abspath(img_path)
+            })
         except Exception as e:
             print(f"⚠️ 跳过 {img_name}: {e}")
 
-    if best_match:
-        output_path = os.path.join(output_dir, os.path.basename(best_match))
-        shutil.copy2(best_match, output_path)
-        
-        if best_match:
-            similarity = 1 / (1 + best_distance)
-            result = {
-                "filename": os.path.basename(best_match),
-                "distance": float(best_distance),
-                "similarity": float(similarity),
-                "original_path": os.path.abspath(best_match),
-                "output_path": os.path.abspath(output_path)
-            }
-        else:
-            result = None
+    all_matches = sorted(all_matches, key=lambda item: item["distance"])
+    top_matches = all_matches[:max(1, int(top_k or 1))]
 
-        print(json.dumps(result, ensure_ascii=False))
-        sys.stdout.flush()  
+    for item in top_matches:
+        output_path = os.path.join(output_dir, item["filename"])
+        shutil.copy2(item["original_path"], output_path)
+        item["output_path"] = os.path.abspath(output_path)
+
+    if top_matches:
+        best_match = top_matches[0]
+        result = {
+            "filename": best_match["filename"],
+            "distance": best_match["distance"],
+            "similarity": best_match["similarity"],
+            "original_path": best_match["original_path"],
+            "output_path": best_match["output_path"],
+            "results": top_matches
+        }
+    else:
+        result = {
+            "filename": "",
+            "distance": None,
+            "similarity": None,
+            "results": []
+        }
+
+    print(json.dumps(result, ensure_ascii=False))
+    sys.stdout.flush()
 
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 4:
-        print("Usage: python reid_infer.py <query_path> <crops_dir> <output_dir>")
+        print("Usage: python reid_infer.py <query_path> <crops_dir> <output_dir> [top_k]")
         sys.exit(1)
-    run_find_most(sys.argv[1], sys.argv[2], sys.argv[3])
+    run_find_most(
+        sys.argv[1],
+        sys.argv[2],
+        sys.argv[3],
+        int(sys.argv[4]) if len(sys.argv) >= 5 else 1,
+        sys.argv[5] if len(sys.argv) >= 6 else ''
+    )

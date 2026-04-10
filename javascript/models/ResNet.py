@@ -13,7 +13,7 @@ class ResNet50(nn.Module):
     def __init__(self, num_classes, loss={'softmax'}, aligned=False, **kwargs):
         super(ResNet50, self).__init__()
         self.loss = loss
-        resnet50 = torchvision.models.resnet50(pretrained=True)
+        resnet50 = torchvision.models.resnet50(weights=None)
         self.base = nn.Sequential(*list(resnet50.children())[:-2])
         self.classifier = nn.Linear(2048, num_classes)
         self.feat_dim = 2048 # feature dimension
@@ -58,7 +58,7 @@ class ResNet101(nn.Module):
     def __init__(self, num_classes, loss={'softmax'}, aligned=False, **kwargs):
         super(ResNet101, self).__init__()
         self.loss = loss
-        resnet101 = torchvision.models.resnet101(pretrained=False)
+        resnet101 = torchvision.models.resnet101(weights=None)
         self.base = nn.Sequential(*list(resnet101.children())[:-2])
         self.classifier = nn.Linear(2048, num_classes)
         self.feat_dim = 2048 # feature dimension
