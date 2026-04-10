@@ -181,16 +181,10 @@
         var queryValue = searchParams.get('preview');
 
         if (queryValue === '1') {
-            localStorage.setItem(PREVIEW_MODE_KEY, '1');
             return true;
         }
 
-        if (queryValue === '0') {
-            localStorage.removeItem(PREVIEW_MODE_KEY);
-            return false;
-        }
-
-        return localStorage.getItem(PREVIEW_MODE_KEY) === '1';
+        return false;
     }
 
     function getDataMode() {
@@ -224,7 +218,7 @@
             return queryApiBase.replace(/\/+$/, '');
         }
 
-        if (window.location.port === '4180') {
+        if (window.location.port === '4180' || window.location.port === '4173') {
             return 'http://127.0.0.1:3000';
         }
 
@@ -1132,6 +1126,7 @@
                 localStorage.setItem(SESSION_KEY, JSON.stringify({
                     currentUser: this.currentUser,
                     currentUserEmail: this.currentUserEmail,
+                    authToken: this.authToken,
                     usageCount: this.usageCount,
                     lastUsed: this.lastUsed,
                     registrationDate: this.registrationDate
@@ -1152,7 +1147,13 @@
 
                 try {
                     parsed = JSON.parse(savedSession);
+                    if (!parsed.authToken) {
+                        this.clearSession();
+                        return;
+                    }
+
                     this.isLoggedIn = true;
+                    this.authToken = parsed.authToken || '';
                     this.currentUser = parsed.currentUser || (MOCK.user || {}).username || '景区值守员';
                     this.currentUserEmail = parsed.currentUserEmail || (MOCK.user || {}).email || '';
                     this.usageCount = Number(parsed.usageCount || 0);
@@ -1409,6 +1410,7 @@
 
             login: function () {
                 var self = this;
+                var payload;
 
                 self.loginErrors.username = !self.loginForm.username.trim();
                 self.loginErrors.password = !self.loginForm.password || self.loginForm.password.length < 6;
@@ -1419,10 +1421,29 @@
 
                 self.authLoading = true;
 
-                setTimeout(function () {
-                    self.applyMockUser(self.loginForm.username, false);
+                API_CLIENT.request({
+                    baseUrl: self.apiBaseUrl,
+                    path: '/api/login',
+                    method: 'POST',
+                    body: JSON.stringify({
+                        username: self.loginForm.username.trim(),
+                        password: self.loginForm.password
+                    })
+                }).then(function (response) {
+                    payload = response || {};
+                    self.authToken = payload.token || '';
                     self.isLoggedIn = true;
+                    self.isPreviewMode = false;
                     self.loginSuccess = true;
+                    self.currentUser = (((payload.user || {}).username) || self.loginForm.username.trim());
+                    self.currentUserEmail = (((payload.user || {}).email) || '');
+                    self.usageCount = Number((((payload.user || {}).usageCount) || 0));
+                    self.lastUsed = (((payload.user || {}).lastUsed) || '');
+                    self.registrationDate = (((payload.user || {}).registrationDate) || '');
+
+                    if (payload.user && payload.user.settings) {
+                        self.settings = normalizeSettings(payload.user.settings);
+                    }
 
                     if (self.loginForm.remember) {
                         self.persistSession();
@@ -1432,8 +1453,8 @@
 
                     self.queueToast(
                         self.isRealMode
-                            ? '已进入平台，识别任务与历史记录将同步更新。'
-                            : '已进入平台，可查看监测概况、识别任务与历史记录。',
+                            ? '登录成功，识别任务与历史记录已连接系统服务。'
+                            : '登录成功。',
                         'success'
                     );
 
@@ -1445,9 +1466,11 @@
                         self.loginSuccess = false;
                         self.resetLoginForm();
                     }, 600);
-
+                }).catch(function (error) {
+                    self.queueToast(error.message || '登录失败', 'error');
+                }).finally(function () {
                     self.authLoading = false;
-                }, 420);
+                });
             },
 
             sendRegisterCode: function () {
@@ -1464,12 +1487,23 @@
 
                 self.registerCodeLoading = true;
 
-                setTimeout(function () {
+                API_CLIENT.request({
+                    baseUrl: self.apiBaseUrl,
+                    path: '/api/register/email-code/send',
+                    method: 'POST',
+                    body: JSON.stringify({
+                        email: email
+                    })
+                }).then(function (response) {
+                    var retryAfterSec = Number((response || {}).retryAfterSec || 60);
                     self.registerCodeLoading = false;
-                    self.registerCodeMessage = '验证码已发送，请输入验证码：246810';
-                    self.startCodeCooldown('register', 60);
-                    self.queueToast('注册验证码已发送，请注意查收。', 'info');
-                }, 260);
+                    self.registerCodeMessage = (response && response.msg) || '验证码已发送，请查收邮箱';
+                    self.startCodeCooldown('register', retryAfterSec);
+                    self.queueToast((response && response.msg) || '验证码已发送，请查收邮箱。', 'info');
+                }).catch(function (error) {
+                    self.registerCodeLoading = false;
+                    self.queueToast(error.message || '验证码发送失败', 'error');
+                });
             },
 
             sendResetCode: function () {
@@ -1486,12 +1520,23 @@
 
                 self.resetCodeLoading = true;
 
-                setTimeout(function () {
+                API_CLIENT.request({
+                    baseUrl: self.apiBaseUrl,
+                    path: '/api/reset-password/email-code/send',
+                    method: 'POST',
+                    body: JSON.stringify({
+                        email: email
+                    })
+                }).then(function (response) {
+                    var retryAfterSec = Number((response || {}).retryAfterSec || 60);
                     self.resetCodeLoading = false;
-                    self.resetCodeMessage = '验证码已发送，请输入验证码：135790';
-                    self.startCodeCooldown('reset', 60);
-                    self.queueToast('重置密码验证码已发送，请注意查收。', 'info');
-                }, 260);
+                    self.resetCodeMessage = (response && response.msg) || '验证码已发送，请查收邮箱';
+                    self.startCodeCooldown('reset', retryAfterSec);
+                    self.queueToast((response && response.msg) || '验证码已发送，请查收邮箱。', 'info');
+                }).catch(function (error) {
+                    self.resetCodeLoading = false;
+                    self.queueToast(error.message || '验证码发送失败', 'error');
+                });
             },
 
             checkPasswordStrength: function () {
@@ -1557,12 +1602,25 @@
 
                 self.authLoading = true;
 
-                setTimeout(function () {
+                API_CLIENT.request({
+                    baseUrl: self.apiBaseUrl,
+                    path: '/api/register',
+                    method: 'POST',
+                    body: JSON.stringify({
+                        username: self.registerForm.username.trim(),
+                        email: self.registerForm.email.trim(),
+                        emailCode: self.registerForm.emailCode.trim(),
+                        password: self.registerForm.password
+                    })
+                }).then(function (response) {
                     self.authLoading = false;
-                    self.queueToast('账号注册成功，请使用当前信息登录平台。', 'success');
+                    self.queueToast((response && response.msg) || '账号注册成功，请使用当前信息登录平台。', 'success');
                     self.resetRegisterForm();
                     self.currentAuthForm = 'login';
-                }, 460);
+                }).catch(function (error) {
+                    self.authLoading = false;
+                    self.queueToast(error.message || '账号注册失败', 'error');
+                });
             },
 
             validateResetForm: function () {
@@ -1588,17 +1646,31 @@
 
                 self.authLoading = true;
 
-                setTimeout(function () {
+                API_CLIENT.request({
+                    baseUrl: self.apiBaseUrl,
+                    path: '/api/reset-password',
+                    method: 'POST',
+                    body: JSON.stringify({
+                        email: self.resetForm.email.trim(),
+                        emailCode: self.resetForm.emailCode.trim(),
+                        newPassword: self.resetForm.newPassword
+                    })
+                }).then(function (response) {
                     self.authLoading = false;
-                    self.queueToast('密码已重置，请返回登录页继续使用。', 'success');
+                    self.queueToast((response && response.msg) || '密码已重置，请返回登录页继续使用。', 'success');
                     self.resetResetForm();
                     self.currentAuthForm = 'login';
-                }, 420);
+                }).catch(function (error) {
+                    self.authLoading = false;
+                    self.queueToast(error.message || '密码重置失败', 'error');
+                });
             },
 
             logout: function () {
                 this.queueToast('已退出平台。', 'info');
                 this.isLoggedIn = false;
+                this.isPreviewMode = false;
+                this.authToken = '';
                 this.clearSession();
                 this.currentUser = '';
                 this.currentUserEmail = '';
